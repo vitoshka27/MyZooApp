@@ -1,0 +1,34 @@
+services:
+  db:
+    image: mysql
+    container_name: zoo_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: zoo_db
+      MYSQL_USER: zoo_user
+      MYSQL_PASSWORD: password
+    ports:
+    - "127.0.0.1:3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+  web:
+    build: .
+    container_name: zoo_api
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DB_USER:     zoo_user
+      DB_PASSWORD: password
+      DB_HOST:     db
+      DB_PORT:     '3306'
+      DB_NAME:     zoo_db
+      FLASK_DEBUG: 1
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./api:/app/api
+      - ./media/avatars:/app/media/avatars
+volumes:
+  db_data:

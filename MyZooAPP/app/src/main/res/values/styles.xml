@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MyZoo.UCrop" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/tropic_green</item>
+        <item name="colorPrimaryDark">@color/tropic_green</item>
+        <item name="colorAccent">@color/purple_200</item> <!-- Замените на нужный цвет, если требуется -->
+        <!-- Можно добавить другие параметры, если нужно -->
+    </style>
+</resources>
