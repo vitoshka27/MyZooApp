@@ -32,7 +32,16 @@ data class EnclosureListResponse(val data: List<EnclosureDto>)
 data class EnclosureDto(val id: Int, val name: String)
 
 data class FeedTypeListResponse(val data: List<FeedTypeDto>)
-data class FeedTypeDto(val id: Int, val name: String) 
+data class FeedTypeDto(val id: Int, val name: String)
+
+data class ExchangeItem(
+    val partner_zoo: String,
+    val exchange_count: Int,
+    val total_zoos: Int
+)
+data class ExchangeResponse(
+    val data: List<ExchangeItem>
+) 
  
  
  

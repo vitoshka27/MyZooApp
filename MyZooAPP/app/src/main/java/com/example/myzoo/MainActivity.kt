@@ -284,8 +284,8 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("staff") { StaffListScreen() }
                             composable("supplies") { SuppliesListScreen() }
-                            composable("production") { PlaceholderScreen("Производство") }
-                            composable("exchange") { PlaceholderScreen("Обмен") }
+                            composable("production") { ProductionListScreen() }
+                            composable("exchange") { ExchangeListScreen() }
                             composable("admin") { PlaceholderScreen("Админ-панель") }
                             composable("treatment") { PlaceholderScreen("Лечение") }
                             composable("medical") { PlaceholderScreen("Медосмотр") }

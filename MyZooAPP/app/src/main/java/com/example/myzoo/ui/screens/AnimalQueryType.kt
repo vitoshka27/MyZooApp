@@ -20,10 +20,10 @@ enum class StaffSortField(val apiName: String, val displayName: String) {
 
 fun getStaffSortFieldsForQuery(query: StaffQueryType): List<StaffSortField> = when (query) {
     StaffQueryType.GENERAL -> listOf(
-        StaffSortField.LAST_NAME, StaffSortField.FIRST_NAME, StaffSortField.AGE, StaffSortField.YEARS_WORKED, StaffSortField.SALARY
+        StaffSortField.FIRST_NAME, StaffSortField.LAST_NAME, StaffSortField.AGE, StaffSortField.YEARS_WORKED, StaffSortField.SALARY
     )
     StaffQueryType.CARETAKERS -> listOf(
-        StaffSortField.LAST_NAME, StaffSortField.FIRST_NAME, StaffSortField.YEARS_WORKED
+        StaffSortField.FIRST_NAME, StaffSortField.LAST_NAME, StaffSortField.YEARS_WORKED
     )
 }
 

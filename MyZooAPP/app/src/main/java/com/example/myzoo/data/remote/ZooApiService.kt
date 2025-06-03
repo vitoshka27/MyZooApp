@@ -178,6 +178,20 @@ interface ZooApiService {
         @Query("order_by") orderBy: String? = null,
         @Query("order_dir") orderDir: String? = null
     ): SuppliesResponse
+
+    @GET("api/custom_queries/query13")
+    suspend fun getExchangeQuery13(
+        @Query("species_id") speciesId: Int? = null,
+        @Query("order_by") orderBy: String? = null,
+        @Query("order_dir") orderDir: String? = null
+    ): ExchangeResponse
+
+    @GET("api/custom_queries/query9")
+    suspend fun getProductionQuery9(
+        @Query("feed_type_id") feedTypeId: Int? = null,
+        @Query("order_by") orderBy: String? = null,
+        @Query("order_dir") orderDir: String? = null
+    ): ProductionResponse
 }
 
 data class StaffCategoryDto(

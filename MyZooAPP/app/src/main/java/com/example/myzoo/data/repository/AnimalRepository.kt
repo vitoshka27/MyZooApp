@@ -109,6 +109,14 @@ class AnimalRepository {
 
     suspend fun getDiseases() = withContext(Dispatchers.IO) { api.getDiseases().data }
     suspend fun getVaccines() = withContext(Dispatchers.IO) { api.getVaccines().data }
+
+    suspend fun getExchangeQuery13(
+        speciesId: Int? = null,
+        orderBy: String? = null,
+        orderDir: String? = null
+    ) = withContext(Dispatchers.IO) {
+        api.getExchangeQuery13(speciesId, orderBy, orderDir)
+    }
 } 
  
  

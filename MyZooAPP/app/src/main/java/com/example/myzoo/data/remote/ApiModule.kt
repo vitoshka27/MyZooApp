@@ -96,6 +96,18 @@ object ApiModule {
     suspend fun getAnimalsShort(): List<AnimalShortDto> = zooApi.getAnimalsShort().data
 
     suspend fun getStaffCategories(): List<StaffCategoryDto> = zooApi.getStaffCategories().data
+
+    suspend fun getExchangeQuery13(
+        speciesId: Int? = null,
+        orderBy: String? = null,
+        orderDir: String? = null
+    ): List<ExchangeItem> = zooApi.getExchangeQuery13(speciesId, orderBy, orderDir).data
+
+    suspend fun getProductionQuery9(
+        feedTypeId: Int? = null,
+        orderBy: String? = null,
+        orderDir: String? = null
+    ): List<ProductionItem> = zooApi.getProductionQuery9(feedTypeId, orderBy, orderDir).data
 } 
  
  

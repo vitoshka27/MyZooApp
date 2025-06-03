@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.Handshake
+import androidx.compose.ui.platform.LocalDensity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +90,7 @@ fun SuppliesListScreen(
 
     var sortButtonOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     var sortButtonHeight by remember { mutableStateOf(0) }
+    var sortButtonWidth by remember { mutableStateOf(0) }
 
     // --- Автоматическая загрузка данных ---
     LaunchedEffect(sortField, sortDir, filterFeedTypeId, filterOrderDateStart, filterOrderDateEnd, filterQuantityMin, filterQuantityMax, filterPriceMin, filterPriceMax, filterDeliveryDateStart, filterDeliveryDateEnd) {
@@ -158,94 +160,110 @@ fun SuppliesListScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(64.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(
-                        onClick = { showFilterSheet = true },
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
-                        modifier = Modifier.height(44.dp)
+                Box(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Icon(Icons.Filled.FilterList, contentDescription = "Фильтры", tint = TropicGreen, modifier = Modifier.size(22.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Фильтры", color = TropicGreen)
+                        Button(
+                            onClick = { showFilterSheet = true },
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Icon(Icons.Filled.FilterList, contentDescription = "Фильтры", tint = TropicGreen, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Фильтры", color = TropicGreen)
+                        }
+                        Button(
+                            onClick = { showSortPopup = true },
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(44.dp)
+                                .onGloballyPositioned { coords ->
+                                    sortButtonOffset = coords.positionInParent()
+                                    sortButtonHeight = coords.size.height
+                                    sortButtonWidth = coords.size.width
+                                }
+                        ) {
+                            Text(
+                                when (sortField) {
+                                    "name" -> "Имя"
+                                    "order_count" -> "Кол-во заказов"
+                                    "total_ordered_quantity" -> "Объем"
+                                    "avg_price" -> "Средняя цена"
+                                    else -> sortField
+                                },
+                                color = TropicTurquoise
+                            )
+                        }
+                        IconButton(
+                            onClick = { sortDir = if (sortDir == "asc") "desc" else "asc" },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(Color.White, shape = RoundedCornerShape(50))
+                        ) {
+                            Icon(
+                                if (sortDir == "asc") Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+                                contentDescription = "Сменить направление сортировки",
+                                tint = TropicTurquoise,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
-                    Button(
-                        onClick = { showSortPopup = true },
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
-                        modifier = Modifier
-                            .height(44.dp)
-                            .onGloballyPositioned { coords ->
-                                sortButtonOffset = coords.positionInParent()
-                                sortButtonHeight = coords.size.height
-                            }
-                    ) {
-                        Text(
-                            when (sortField) {
-                                "name" -> "Имя"
-                                "order_count" -> "Кол-во заказов"
-                                "total_ordered_quantity" -> "Объем"
-                                "avg_price" -> "Средняя цена"
-                                else -> sortField
-                            },
-                            color = TropicTurquoise
-                        )
-                    }
-                    IconButton(
-                        onClick = { sortDir = if (sortDir == "asc") "desc" else "asc" },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(Color.White, shape = RoundedCornerShape(50))
-                    ) {
-                        Icon(
-                            if (sortDir == "asc") Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
-                            contentDescription = "Сменить направление сортировки",
-                            tint = TropicTurquoise,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-            }
-            // --- Sort popup ---
-            if (showSortPopup) {
-                Popup(
-                    alignment = Alignment.TopStart,
-                    offset = IntOffset(sortButtonOffset.x.roundToInt(), (sortButtonOffset.y + sortButtonHeight).roundToInt()),
-                    properties = PopupProperties(focusable = true, dismissOnClickOutside = true),
-                    onDismissRequest = { showSortPopup = false }
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color.Transparent,
-                        tonalElevation = 8.dp,
-                        modifier = Modifier.width(220.dp).border(1.dp, Color(0x22000000), shape = RoundedCornerShape(24.dp)).background(Brush.verticalGradient(colors = listOf(Color(0xFFFFFFFF), Color(0xFFFCFFFE))), shape = RoundedCornerShape(24.dp))
-                    ) {
-                        Column {
-                            listOf(
-                                "name" to "Имя",
-                                "order_count" to "Кол-во заказов",
-                                "total_ordered_quantity" to "Общий объём",
-                                "avg_price" to "Средняя цена"
-                            ).forEach { (field, label) ->
-                                val isSelected = sortField == field
-                                Box(
-                                    Modifier.fillMaxWidth().background(if (isSelected) TropicTurquoise.copy(alpha = 0.08f) else Color.Transparent).clickable {
-                                        sortField = field
-                                        showSortPopup = false
-                                    }.padding(horizontal = 20.dp, vertical = 16.dp)
-                                ) {
-                                    Text(label, color = if (isSelected) TropicTurquoise else TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
+                    // --- Sort popup ---
+                    if (showSortPopup) {
+                        val density = LocalDensity.current
+                        val minWidth = with(density) { 160.dp.toPx() }
+                        val maxWidth = with(density) { 240.dp.toPx() }
+                        val popupWidthPx = sortButtonWidth.coerceIn(minWidth.toInt(), maxWidth.toInt())
+                        Popup(
+                            alignment = Alignment.TopStart,
+                            offset = IntOffset(sortButtonOffset.x.roundToInt(), (sortButtonOffset.y + sortButtonHeight).roundToInt()),
+                            properties = PopupProperties(focusable = true, dismissOnClickOutside = true),
+                            onDismissRequest = { showSortPopup = false }
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = Color.Transparent,
+                                tonalElevation = 8.dp,
+                                modifier = Modifier
+                                    .width(with(density) { popupWidthPx.toDp() })
+                                    .border(1.dp, Color(0x22000000), shape = RoundedCornerShape(24.dp))
+                                    .background(
+                                        Brush.verticalGradient(colors = listOf(Color(0xFFFFFFFF), Color(0xFFFCFFFE))),
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
+                            ) {
+                                Column {
+                                    listOf(
+                                        "name" to "Имя",
+                                        "order_count" to "Кол-во заказов",
+                                        "total_ordered_quantity" to "Общий объём",
+                                        "avg_price" to "Средняя цена"
+                                    ).forEach { (field, label) ->
+                                        val isSelected = sortField == field
+                                        Box(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .background(if (isSelected) TropicLime.copy(alpha = 0.18f) else Color.Transparent)
+                                                .clickable {
+                                                    sortField = field
+                                                    showSortPopup = false
+                                                }
+                                                .padding(horizontal = 20.dp, vertical = 16.dp)
+                                        ) {
+                                            Text(label, color = if (isSelected) TropicTurquoise else TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
+                                        }
+                                    }
                                 }
                             }
-                            Divider()
                         }
                     }
                 }

@@ -65,7 +65,7 @@ fun StaffListScreen(
     val animals by viewModel.animals.collectAsState()
     val selectedStaffDetails by viewModel.selectedStaffDetails.collectAsState()
     var selectedQuery by remember { mutableStateOf(StaffQueryType.GENERAL) }
-    var sortField by remember { mutableStateOf(StaffSortField.LAST_NAME) }
+    var sortField by remember { mutableStateOf(StaffSortField.FIRST_NAME) }
     var sortDir by remember { mutableStateOf("asc") }
     var filterCategory by remember { mutableStateOf<String?>(null) }
     var filterGender by remember { mutableStateOf<String?>(null) }
@@ -896,3 +896,5 @@ fun StaffFilterBottomSheet(
         }
     }
 } 
+ 
+ 
