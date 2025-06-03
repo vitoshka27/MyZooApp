@@ -182,7 +182,6 @@ fun ProfileScreen(
             }
         } else {
             val exception = result.error
-            Toast.makeText(context, "${exception?.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

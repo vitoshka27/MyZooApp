@@ -66,6 +66,8 @@ import android.net.Uri
 import android.graphics.Bitmap
 import java.io.File
 import java.io.FileOutputStream
+import com.example.myzoo.ui.screens.StaffListScreen
+import com.example.myzoo.ui.screens.SuppliesListScreen
 
 data class MenuItem(val route: String, val icon: ImageVector)
 
@@ -280,9 +282,8 @@ class MainActivity : ComponentActivity() {
                                     navController = navController
                                 )
                             }
-                            // Заглушки для остальных экранов
-                            composable("staff") { PlaceholderScreen("Работники") }
-                            composable("supplies") { PlaceholderScreen("Поставки") }
+                            composable("staff") { StaffListScreen() }
+                            composable("supplies") { SuppliesListScreen() }
                             composable("production") { PlaceholderScreen("Производство") }
                             composable("exchange") { PlaceholderScreen("Обмен") }
                             composable("admin") { PlaceholderScreen("Админ-панель") }

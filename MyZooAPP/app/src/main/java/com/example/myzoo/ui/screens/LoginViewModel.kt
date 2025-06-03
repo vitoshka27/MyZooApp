@@ -51,20 +51,25 @@ class LoginViewModel : ViewModel() {
         _loginState.value = LoginState.Loading
         viewModelScope.launch {
             try {
-                val response = withContext(Dispatchers.IO) {
+                val (response, bodyString) = withContext(Dispatchers.IO) {
                     val client = OkHttpClient()
-                    val json = JSONObject()
-                    json.put("username", username)
-                    json.put("password", password)
+                    val json = JSONObject().apply {
+                        put("username", username)
+                        put("password", password)
+                    }
                     val body = json.toString().toRequestBody("application/json".toMediaType())
                     val request = Request.Builder()
                         .url(ApiModule.BASE_URL + "api/auth/login")
                         .post(body)
                         .build()
-                    client.newCall(request).execute()
+                    val response = client.newCall(request).execute()
+                    val bodyString = response.body?.string() // Читаем тело ВНУТРИ IO-контекста
+                    Pair(response, bodyString)
                 }
+
                 if (response.isSuccessful) {
-                    val respJson = JSONObject(response.body?.string() ?: "")
+                    Log.d("LoginViewModel", "Ответ сервера: $bodyString")
+                    val respJson = JSONObject(bodyString ?: "")
                     token = respJson.getString("access_token")
                     ApiModule.setToken(token!!)
                     setLoggedOutFlag(context, false)

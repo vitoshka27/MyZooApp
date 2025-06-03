@@ -90,6 +90,8 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import kotlin.math.roundToInt
+import com.example.myzoo.ui.screens.FilterRow
+import com.example.myzoo.ui.screens.DropdownSelector
 
 // --- UI config structures ---
 data class FieldDescriptor(val key: String, val label: String)
@@ -894,7 +896,7 @@ fun AnimalCardDynamic(item: AnimalMenuItem, queryType: AnimalQueryType, onClick:
                 .height(IntrinsicSize.Min)
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color.White, Color(0xFFFCFFFE), Color(0xFFF3FFF8)),
+                        colors = listOf(Color.White, Color(0xFFFCFFFE), Color(0xFFf4fff9)),
                         startX = 0f,
                         endX = 600f
                     ),
@@ -1530,47 +1532,6 @@ fun FilterBottomSheet(
                     onClick = onApply,
                     colors = ButtonDefaults.buttonColors(containerColor = TropicTurquoise)
                 ) { Text("Применить", color = Color.White) }
-            }
-        }
-    }
-}
-
-@Composable
-fun FilterRow(label: String, content: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.weight(1f), color = TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            content()
-        }
-    }
-}
-
-@Composable
-fun <T> DropdownSelector(
-    label: String,
-    options: List<Pair<T, String>>,
-    selected: T?,
-    onSelected: (T?) -> Unit,
-    width: Dp = 180.dp
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(Modifier.width(width)) {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.width(width)) {
-            Text(
-                selected?.let { options.find { it.first == selected }?.second } ?: label,
-                color = if (selected == null) TropicTurquoise.copy(alpha = 0.7f) else TropicTurquoise
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.width(width)) {
-            DropdownMenuItem(text = { Text("Не выбрано") }, onClick = {
-                onSelected(null)
-                expanded = false
-            })
-            options.forEach { (value, text) ->
-                DropdownMenuItem(text = { Text(text) }, onClick = {
-                    onSelected(value)
-                    expanded = false
-                })
             }
         }
     }

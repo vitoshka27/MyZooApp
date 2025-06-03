@@ -10,9 +10,12 @@ import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.Call
+import com.example.myzoo.data.remote.StaffMenuItem
+import com.example.myzoo.data.remote.StaffMenuResponse
+import com.example.myzoo.data.remote.AnimalShortDto
 
 object ApiModule {
-    const val BASE_URL = "http://192.168.0.101:5000/"
+    const val BASE_URL = "http://45.156.26.89:5000/"
     private var token: String? = null
 
     private val authInterceptor = Interceptor { chain ->
@@ -62,6 +65,37 @@ object ApiModule {
 
     fun changePassword(oldPassword: String, newPassword: String) =
         changePasswordApi.changePassword(ChangePasswordRequest(oldPassword, newPassword))
+
+    suspend fun getStaffQuery1(
+        categoryId: Int? = null,
+        gender: String? = null,
+        salaryMin: Float? = null,
+        salaryMax: Float? = null,
+        yearsWorkedMin: Int? = null,
+        yearsWorkedMax: Int? = null,
+        ageMin: Int? = null,
+        ageMax: Int? = null,
+        orderBy: String? = null,
+        orderDir: String? = null
+    ): List<StaffMenuItem> = zooApi.getStaffQuery1(
+        categoryId, gender, salaryMin, salaryMax, yearsWorkedMin, yearsWorkedMax, ageMin, ageMax, orderBy, orderDir
+    ).data
+
+    suspend fun getStaffQuery2(
+        animalId: Int?,
+        startDate: String? = null,
+        endDate: String? = null,
+        gender: String? = null,
+        categoryId: Int? = null,
+        orderBy: String? = null,
+        orderDir: String? = null
+    ): List<StaffMenuItem> = zooApi.getStaffQuery2(
+        animalId, startDate, endDate, gender, categoryId, orderBy, orderDir
+    ).data
+
+    suspend fun getAnimalsShort(): List<AnimalShortDto> = zooApi.getAnimalsShort().data
+
+    suspend fun getStaffCategories(): List<StaffCategoryDto> = zooApi.getStaffCategories().data
 } 
  
  

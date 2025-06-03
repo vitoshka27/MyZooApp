@@ -8,6 +8,8 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.Call
 import okhttp3.MultipartBody
+import com.example.myzoo.data.remote.StaffMenuResponse
+import com.example.myzoo.data.remote.AnimalShortListResponse
 
 interface ZooApiService {
     @GET("api/animals")
@@ -130,7 +132,62 @@ interface ZooApiService {
         @Part avatar: MultipartBody.Part,
         @Part avatar_original: MultipartBody.Part
     ): Call<UploadAvatarResponse>
-} 
+
+    @GET("api/custom_queries/query1")
+    suspend fun getStaffQuery1(
+        @Query("category_id") categoryId: Int? = null,
+        @Query("gender") gender: String? = null,
+        @Query("salary_min") salaryMin: Float? = null,
+        @Query("salary_max") salaryMax: Float? = null,
+        @Query("years_worked_min") yearsWorkedMin: Int? = null,
+        @Query("years_worked_max") yearsWorkedMax: Int? = null,
+        @Query("age_min") ageMin: Int? = null,
+        @Query("age_max") ageMax: Int? = null,
+        @Query("order_by") orderBy: String? = null,
+        @Query("order_dir") orderDir: String? = null
+    ): StaffMenuResponse
+
+    @GET("api/custom_queries/query2")
+    suspend fun getStaffQuery2(
+        @Query("animal_id") animalId: Int? = null,
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+        @Query("gender") gender: String? = null,
+        @Query("category_id") categoryId: Int? = null,
+        @Query("order_by") orderBy: String? = null,
+        @Query("order_dir") orderDir: String? = null
+    ): StaffMenuResponse
+
+    @GET("api/animals")
+    suspend fun getAnimalsShort(): AnimalShortListResponse
+
+    @GET("api/staff_categories/")
+    suspend fun getStaffCategories(): StaffCategoryListResponse
+
+    @GET("api/custom_queries/query8")
+    suspend fun getSuppliesQuery8(
+        @Query("feed_type_id") feedTypeId: Int? = null,
+        @Query("order_date_start") orderDateStart: String? = null,
+        @Query("order_date_end") orderDateEnd: String? = null,
+        @Query("quantity_min") quantityMin: Float? = null,
+        @Query("quantity_max") quantityMax: Float? = null,
+        @Query("price_min") priceMin: Float? = null,
+        @Query("price_max") priceMax: Float? = null,
+        @Query("delivery_date_start") deliveryDateStart: String? = null,
+        @Query("delivery_date_end") deliveryDateEnd: String? = null,
+        @Query("order_by") orderBy: String? = null,
+        @Query("order_dir") orderDir: String? = null
+    ): SuppliesResponse
+}
+
+data class StaffCategoryDto(
+    val id: Int,
+    val name: String
+)
+
+data class StaffCategoryListResponse(
+    val data: List<StaffCategoryDto>
+) 
  
  
  
