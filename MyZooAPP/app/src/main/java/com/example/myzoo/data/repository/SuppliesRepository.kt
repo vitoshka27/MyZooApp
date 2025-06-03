@@ -3,6 +3,7 @@ package com.example.myzoo.data.repository
 import com.example.myzoo.data.remote.ApiModule
 import com.example.myzoo.data.remote.SuppliesItem
 import com.example.myzoo.data.remote.ProductionItem
+import com.example.myzoo.data.remote.FeedOrderItem
 
 class SuppliesRepository {
     private val api = ApiModule.zooApi
@@ -22,6 +23,8 @@ class SuppliesRepository {
     ): List<SuppliesItem> = api.getSuppliesQuery8(
         feedTypeId, orderDateStart, orderDateEnd, quantityMin, quantityMax, priceMin, priceMax, deliveryDateStart, deliveryDateEnd, orderBy, orderDir
     ).data
+
+    suspend fun getFeedOrders(): List<FeedOrderItem> = api.getFeedOrders().data
 }
 
 class ProductionRepository {

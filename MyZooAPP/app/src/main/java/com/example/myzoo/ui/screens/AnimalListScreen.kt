@@ -496,7 +496,7 @@ fun AnimalListScreen(
             ) {
                 val totalAnimals = animals.firstOrNull()?.total_animals
                 Text(
-                    text = "Всего: ${totalAnimals ?: 0}",
+                    text = "Всего животных: ${totalAnimals ?: 0}",
                     style = MaterialTheme.typography.bodyLarge,
                     color = TropicGreen
                 )

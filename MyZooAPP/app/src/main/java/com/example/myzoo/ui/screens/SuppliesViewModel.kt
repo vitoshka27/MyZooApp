@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.example.myzoo.data.remote.FeedTypeDto
+import com.example.myzoo.data.remote.FeedOrderItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 
 class SuppliesViewModel : ViewModel() {
     private val repository = SuppliesRepository()
@@ -15,6 +18,8 @@ class SuppliesViewModel : ViewModel() {
     val supplies: StateFlow<List<SuppliesItem>> = _supplies
     private val _feedTypes = MutableStateFlow<List<FeedTypeDto>>(emptyList())
     val feedTypes: StateFlow<List<FeedTypeDto>> = _feedTypes
+    private val _feedOrders = mutableStateOf<List<FeedOrderItem>>(emptyList())
+    val feedOrders: State<List<FeedOrderItem>> = _feedOrders
 
     init {
         loadFeedTypes()
@@ -47,6 +52,12 @@ class SuppliesViewModel : ViewModel() {
             try {
                 _feedTypes.value = com.example.myzoo.data.remote.ApiModule.zooApi.getFeedTypes().data
             } catch (_: Exception) {}
+        }
+    }
+
+    fun loadFeedOrders() {
+        viewModelScope.launch {
+            _feedOrders.value = repository.getFeedOrders()
         }
     }
 } 

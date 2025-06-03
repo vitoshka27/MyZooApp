@@ -1,6 +1,7 @@
 package com.example.myzoo.data.remote
 
 data class SuppliesItem(
+    val id: Int,
     val name: String,
     val phone: String?,
     val address: String?,

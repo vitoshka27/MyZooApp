@@ -217,7 +217,7 @@ fun StaffListScreen(
             ) {
                 val total = staff.firstOrNull()?.total_employees ?: staff.firstOrNull()?.total_caretakers ?: staff.size
                 Text(
-                    text = "Всего: $total",
+                    text = "Всего сотрудников: $total",
                     style = MaterialTheme.typography.bodyLarge,
                     color = TropicGreen
                 )

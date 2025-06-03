@@ -198,6 +198,9 @@ interface ZooApiService {
     @GET("api/animals/{id}/offspring_count")
     suspend fun getOffspringCount(@retrofit2.http.Path("id") animalId: Int): OffspringCountResponse
 
+    @GET("api/feed_orders/")
+    suspend fun getFeedOrders(): FeedOrdersResponse
+
     // --- Универсальные методы для админ-панели ---
     @GET("api/{table}")
     suspend fun getAdminTable(
