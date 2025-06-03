@@ -91,7 +91,7 @@ class AnimalResource(Resource):
         animal = Animal.query.get_or_404(id)
         db.session.delete(animal)
         db.session.commit()
-        return {'message': 'Животное удалено'}
+        return {'message': 'Животное удалено'} 
 
 @api.route('/<int:id>/offspring_count')
 class AnimalOffspringCountResource(Resource):

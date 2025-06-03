@@ -672,58 +672,7 @@ class Query8Resource(Resource):
         rows = [serialize_row(row) for row in result.mappings()]
         return {'data': rows}
 
-@api.route('/query9')
-class Query9Resource(Resource):
-    @active_user_required
-    @api.param('order_by', 'Поле сортировки', type=str)
-    @api.param('order_dir', 'Направление сортировки', type=str)
-    @api.param('feed_type_id', 'ID типа корма', type=int)
-    def get(self):
-        order_by = request.args.get('order_dir', 'asc')
-        order_dir = request.args.get('order_dir', 'asc')
-        feed_type_id = request.args.get('feed_type_id', type=int)
 
-        sql = '''
-        SELECT
-            fi.name AS feed_item,
-            ft.name AS feed_type,
-            SUM(fp.quantity) AS total_produced,
-            COUNT(*) OVER () AS total_feed_items
-        FROM feed_items fi
-        JOIN feed_production fp ON fi.id = fp.feed_item_id
-        JOIN feed_types ft ON fi.feed_type = ft.id
-        LEFT JOIN feed_orders fo ON fi.id = fo.feed_item_id
-        WHERE fo.id IS NULL
-        '''
-        params = {}
-        if feed_type_id:
-            sql += ' AND ft.id = :feed_type_id'
-            params['feed_type_id'] = feed_type_id
-        sql += '\nGROUP BY fi.id, fi.name, ft.name'
-        allowed_order = {'feed_item', 'feed_type', 'total_produced'}
-        if order_by in allowed_order:
-            sql += f' ORDER BY {order_by} '
-            if order_dir == 'desc':
-                sql += 'DESC'
-            else:
-                sql += 'ASC'
-        else:
-            sql += ' ORDER BY fi.name'
-
-        def serialize_row(row):
-            result = {}
-            for k, v in row.items():
-                if isinstance(v, (datetime.date, datetime.datetime)):
-                    result[k] = v.isoformat()
-                elif isinstance(v, Decimal):
-                    result[k] = float(v)
-                else:
-                    result[k] = v
-            return result
-
-        result = db.session.execute(text(sql), params)
-        rows = [serialize_row(row) for row in result.mappings()]
-        return {'data': rows}
 
 @api.route('/query10')
 class Query10Resource(Resource):
