@@ -201,8 +201,7 @@ interface ZooApiService {
     // --- Универсальные методы для админ-панели ---
     @GET("api/{table}")
     suspend fun getAdminTable(
-        @retrofit2.http.Path("table") table: String,
-        @retrofit2.http.Query("limit") limit: Int = 1000
+        @retrofit2.http.Path("table") table: String
     ): ApiModule.AdminTableResponse
 
     @retrofit2.http.DELETE("api/{table}/{id}")

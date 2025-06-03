@@ -121,7 +121,7 @@ object ApiModule {
     data class AdminTableDeleteResponse(val success: Boolean, val msg: String?)
     data class AdminTableEditResponse(val success: Boolean, val msg: String?)
 
-    suspend fun getAdminTable(table: String, limit: Int = 100): AdminTableResponse = zooApi.getAdminTable(table, limit)
+    suspend fun getAdminTable(table: String): AdminTableResponse = zooApi.getAdminTable(table)
     suspend fun deleteAdminTableRow(table: String, id: Int): AdminTableDeleteResponse {
         // Пробуем обычный вызов
         return try {

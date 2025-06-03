@@ -53,7 +53,7 @@ class AdminPanelViewModel : ViewModel() {
         _error.value = null
         viewModelScope.launch {
             try {
-                val resp = ApiModule.getAdminTable(table, limit = 100)
+                val resp = ApiModule.getAdminTable(table)
                 _tableData.value = resp.data ?: emptyList()
             } catch (e: Exception) {
                 _error.value = e.message
