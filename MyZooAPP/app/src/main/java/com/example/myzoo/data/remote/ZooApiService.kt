@@ -10,6 +10,8 @@ import retrofit2.Call
 import okhttp3.MultipartBody
 import com.example.myzoo.data.remote.StaffMenuResponse
 import com.example.myzoo.data.remote.AnimalShortListResponse
+import okhttp3.ResponseBody
+import retrofit2.Response
 
 interface ZooApiService {
     @GET("api/animals")
@@ -212,15 +214,21 @@ interface ZooApiService {
     @retrofit2.http.POST("api/{table}")
     suspend fun addAdminTableRow(
         @retrofit2.http.Path("table") table: String,
-        @retrofit2.http.Body body: Map<String, Any?>
+        @retrofit2.http.Body body: Map<String, String>
     ): ApiModule.AdminTableEditResponse
 
     @retrofit2.http.PUT("api/{table}/{id}")
     suspend fun updateAdminTableRow(
         @retrofit2.http.Path("table") table: String,
         @retrofit2.http.Path("id") id: Int,
-        @retrofit2.http.Body body: Map<String, Any?>
+        @retrofit2.http.Body body: Map<String, String>
     ): ApiModule.AdminTableEditResponse
+
+    @retrofit2.http.DELETE("api/{table}/{id}")
+    suspend fun deleteAdminTableRowRaw(
+        @retrofit2.http.Path("table") table: String,
+        @retrofit2.http.Path("id") id: Int
+    ): Response<ResponseBody>
 }
 
 data class StaffCategoryDto(

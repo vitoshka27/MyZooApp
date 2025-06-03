@@ -13,6 +13,8 @@ import retrofit2.Call
 import com.example.myzoo.data.remote.StaffMenuItem
 import com.example.myzoo.data.remote.StaffMenuResponse
 import com.example.myzoo.data.remote.AnimalShortDto
+import retrofit2.Response
+import com.google.gson.JsonObject
 
 object ApiModule {
     const val BASE_URL = "http://45.156.26.89:5000/"
@@ -120,9 +122,29 @@ object ApiModule {
     data class AdminTableEditResponse(val success: Boolean, val msg: String?)
 
     suspend fun getAdminTable(table: String, limit: Int = 100): AdminTableResponse = zooApi.getAdminTable(table, limit)
-    suspend fun deleteAdminTableRow(table: String, id: Int): AdminTableDeleteResponse = zooApi.deleteAdminTableRow(table, id)
-    suspend fun addAdminTableRow(table: String, body: Map<String, Any?>): AdminTableEditResponse = zooApi.addAdminTableRow(table, body)
-    suspend fun updateAdminTableRow(table: String, id: Int, body: Map<String, Any?>): AdminTableEditResponse = zooApi.updateAdminTableRow(table, id, body)
+    suspend fun deleteAdminTableRow(table: String, id: Int): AdminTableDeleteResponse {
+        // Пробуем обычный вызов
+        return try {
+            val response = zooApi.deleteAdminTableRowRaw(table, id)
+            if (response.isSuccessful) {
+                val body = response.body()
+                val json = body?.string()?.let { com.google.gson.JsonParser.parseString(it).asJsonObject }
+                val msg = json?.get("msg")?.asString ?: json?.get("message")?.asString
+                val success = when {
+                    json?.has("success") == true -> json["success"].asBoolean
+                    msg?.contains("удален", ignoreCase = true) == true -> true
+                    else -> false
+                }
+                AdminTableDeleteResponse(success, msg)
+            } else {
+                AdminTableDeleteResponse(false, response.errorBody()?.string())
+            }
+        } catch (e: Exception) {
+            AdminTableDeleteResponse(false, e.message)
+        }
+    }
+    suspend fun addAdminTableRow(table: String, body: Map<String, String>): AdminTableEditResponse = zooApi.addAdminTableRow(table, body)
+    suspend fun updateAdminTableRow(table: String, id: Int, body: Map<String, String>): AdminTableEditResponse = zooApi.updateAdminTableRow(table, id, body)
 } 
  
  

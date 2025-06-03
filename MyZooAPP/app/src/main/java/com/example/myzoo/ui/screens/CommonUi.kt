@@ -56,7 +56,8 @@ fun <T> DropdownSelector(
     options: List<Pair<T, String>>,
     selected: T?,
     onSelected: (T?) -> Unit,
-    width: Dp = 180.dp
+    width: Dp = 180.dp,
+    popupMaxHeight: Dp = 240.dp
 ) {
     var expanded by remember { mutableStateOf(false) }
     var buttonOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
@@ -100,9 +101,8 @@ fun <T> DropdownSelector(
                             shape = RoundedCornerShape(24.dp)
                         )
                 ) {
-                    val maxHeight = 240.dp
                     LazyColumn(
-                        modifier = Modifier.heightIn(max = maxHeight)
+                        modifier = Modifier.heightIn(max = popupMaxHeight)
                     ) {
                         item {
                             Box(

@@ -34,6 +34,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.example.myzoo.data.remote.ApiModule
 import com.example.myzoo.ui.theme.TropicYellow
+import com.example.myzoo.ui.theme.TropicOnBackground
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 class AdminPanelViewModel : ViewModel() {
     private val _tableData = MutableStateFlow<List<Map<String, Any?>>>(emptyList())
@@ -67,10 +70,14 @@ class AdminPanelViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val resp = ApiModule.deleteAdminTableRow(table, id)
-                if (resp.success) {
+                // Всегда обновляем таблицу
+                loadTable(table)
+                // Ждём обновления данных
+                kotlinx.coroutines.delay(300)
+                val stillExists = _tableData.value.any { (it["id"] as? Number)?.toInt() == id }
+                if (!stillExists) {
                     _successMsg.value = "Удалено"
-                    loadTable(table)
-                } else {
+                } else if (!resp.success) {
                     _error.value = resp.msg ?: "Ошибка удаления"
                 }
             } catch (e: Exception) {
@@ -92,8 +99,8 @@ fun AdminPanelScreen(
 ) {
     var selectedTable by remember { mutableStateOf<String?>(null) }
     val allTables = listOf(
-        "animals", "species", "enclosures", "staff", "staff_categories", "diseases", "vaccines", "feed_types", "feed_orders", "feed_suppliers", "feed_inventory", "feed_items", "animal_medical_records", "animal_diseases", "animal_vaccinations", "animal_caretakers", "animal_movement_history", "zoo_exchanges", "climate_zones", "feeding_classifications", "supplier_feed_types", "category_attributes", "staff_attribute_values", "enclosure_neighbors", "incompatible_species", "daily_feeding_menu", "animal_diet_requirements"
-    )
+        "animals", "species", "enclosures", "staff", "staff_categories", "diseases", "vaccines", "feed_types", "feed_orders", "feed_suppliers", "feed_inventory", "feed_items", "animal_medical_records", "animal_diseases", "animal_vaccinations", "animal_caretakers", "animal_movement_history", "zoo_exchanges", "climate_zones", "feeding_classifications", "supplier_feed_types", "category_attributes", "staff_attribute_values", "enclosure_neighbors", "incompatible_species", "daily_feeding_menu", "animal_diet_requirements", "feed_production"
+    ).sorted()
     val vm: AdminPanelViewModel = viewModel()
     val tableData by vm.tableData.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -101,49 +108,64 @@ fun AdminPanelScreen(
     val successMsg by vm.successMsg.collectAsState()
     val columns = tableData.firstOrNull()?.keys?.toList() ?: emptyList()
     val totalCount = tableData.size
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editRow by remember { mutableStateOf<Map<String, Any?>?>(null) }
+    var editValues by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     Surface(
         color = TropicBackground,
         modifier = modifier.fillMaxSize()
     ) {
         Column(Modifier.fillMaxSize()) {
-            // AppBar
-            TopAppBar(
-                title = { Text("Админ-панель", color = TropicTurquoise) },
-                navigationIcon = {
+            // Кастомная шапка с градиентом и скруглением
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(
+                        Brush.horizontalGradient(listOf(TropicOrange, TropicTurquoise)),
+                        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+                    ),
+            ) {
+                Row(
+                    Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = TropicTurquoise)
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = TropicSurface)
-            )
+                    Text(
+                        "Админ-панель",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
             Column(Modifier.fillMaxSize().padding(5.dp)) {
                 // Селектор таблицы и всего записей в одной строке
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Text("Таблица:", color = TropicGreen)
                     Spacer(Modifier.width(12.dp))
-                    var expanded by remember { mutableStateOf(false) }
-                    Box {
-                        Button(onClick = { expanded = true }, colors = ButtonDefaults.buttonColors(containerColor = TropicSurface)) {
-                            Text(selectedTable ?: "Выберите таблицу", color = TropicTurquoise)
-                        }
-                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            allTables.forEach { table ->
-                                DropdownMenuItem(
-                                    text = { Text(table) },
-                                    onClick = {
-                                        selectedTable = table
-                                        expanded = false
-                                        vm.loadTable(table)
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    if (columns.isNotEmpty() && tableData.isNotEmpty()) {
-                        Text("Всего записей: $totalCount", color = TropicTurquoise, style = MaterialTheme.typography.bodyMedium)
-                    }
+                    DropdownSelector(
+                        label = "Выберите таблицу",
+                        options = allTables.map { it to it },
+                        selected = selectedTable,
+                        onSelected = {
+                            selectedTable = it
+                            if (it != null) vm.loadTable(it)
+                        },
+                        width = 255.dp,
+                        popupMaxHeight = 420.dp
+                    )
+                }
+                if (columns.isNotEmpty() && tableData.isNotEmpty()) {
+                    Text(
+                        "Всего записей: $totalCount",
+                        color = TropicTurquoise,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 0.dp, top = 4.dp, bottom = 8.dp)
+                    )
                 }
                 Spacer(Modifier.height(16.dp))
                 if (loading) {
@@ -162,38 +184,61 @@ fun AdminPanelScreen(
                     }
                     // Всего записей
                     if (columns.isNotEmpty() && tableData.isNotEmpty()) {
-                        LazyColumn(Modifier.weight(1f)) {
-                            items(tableData) { row ->
-                                Card(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    colors = CardDefaults.cardColors(containerColor = TropicSurface)
-                                ) {
-                                    Column(Modifier.padding(12.dp)) {
-                                        row.forEach { (key, value) ->
-                                            Row(
-                                                Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text(
-                                                    key,
-                                                    color = Color.Gray,
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Text(
-                                                    formatValue(value),
-                                                    color = Color.Black,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                        Box(Modifier.weight(1f)) {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                items(tableData) { row ->
+                                    Card(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        colors = CardDefaults.cardColors(containerColor = TropicSurface)
+                                    ) {
+                                        Column(Modifier.padding(12.dp)) {
+                                            row.entries.forEachIndexed { idx, (key, value) ->
+                                                Row(
+                                                    Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        key,
+                                                        color = Color.Gray,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        modifier = Modifier.weight(0.4f)
+                                                    )
+                                                    Text(
+                                                        formatValue(value),
+                                                        color = Color.Black,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.weight(0.6f),
+                                                        maxLines = 5,
+                                                        softWrap = true
+                                                    )
+                                                }
+                                                if (idx != row.size - 1) {
+                                                    Divider(
+                                                        color = Color(0x22000000),
+                                                        thickness = 1.dp,
+                                                        modifier = Modifier.padding(vertical = 4.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                         Row(
                                             Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.End
                                         ) {
-                                            IconButton(onClick = { /* TODO: Редактировать */ }) {
+                                            IconButton(onClick = {
+                                                editRow = row
+                                                editValues = columns.associateWith { 
+                                                    val v = row[it]
+                                                    if (v is Number) {
+                                                        val intVal = v.toInt()
+                                                        if (v.toDouble() == intVal.toDouble()) intVal.toString() else v.toString()
+                                                    } else v?.toString() ?: ""
+                                                }
+                                                showEditDialog = true
+                                            }) {
                                                 Icon(Icons.Filled.EditNote, contentDescription = "Редактировать", tint = TropicYellow, modifier = Modifier.size(35.dp))
                                             }
                                             IconButton(onClick = {
@@ -206,18 +251,27 @@ fun AdminPanelScreen(
                                     }
                                 }
                             }
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            // Плавающая кнопка плюсик
                             Box(
                                 modifier = Modifier
-                                    .size(52.dp, 52.dp)
-                                    .clip(RoundedCornerShape(26.dp))
-                                    .background(TropicGreen)
-                                    .clickable { /* TODO: Добавить новую запись */ },
-                                contentAlignment = Alignment.Center
+                                    .fillMaxSize()
+                                    .padding(bottom = 10.dp, end = 15.dp),
+                                contentAlignment = Alignment.BottomEnd
                             ) {
-                                Icon(Icons.Filled.Add, contentDescription = "Добавить запись", tint = Color.White, modifier = Modifier.size(32.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(28.dp))
+                                        .background(TropicGreen)
+                                        .clickable {
+                                            editRow = null
+                                            editValues = columns.associateWith { "" }
+                                            showEditDialog = true
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = "Добавить запись", tint = Color.White, modifier = Modifier.size(32.dp))
+                                }
                             }
                         }
                     } else {
@@ -228,6 +282,93 @@ fun AdminPanelScreen(
                 }
             }
         }
+    }
+    // Диалог добавления/редактирования
+    if (showEditDialog && columns.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            modifier = Modifier
+                .defaultMinSize(minWidth = 280.dp)
+                .widthIn(max = 420.dp)
+                .heightIn(max = 600.dp),
+            confirmButton = {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { showEditDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = TropicOrange),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                    ) {
+                        Text("Отмена", color = Color.White)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                Brush.horizontalGradient(listOf(TropicGreen, TropicTurquoise))
+                            )
+                    ) {
+                        Button(
+                            onClick = {
+                                val id = editRow?.get("id") as? Number
+                                val body = editValues.filterKeys { it != "id" }
+                                if (editRow == null) {
+                                    vm.viewModelScope.launch {
+                                        ApiModule.addAdminTableRow(selectedTable!!, body)
+                                        vm.loadTable(selectedTable!!)
+                                    }
+                                } else if (id != null) {
+                                    vm.viewModelScope.launch {
+                                        ApiModule.updateAdminTableRow(selectedTable!!, id.toInt(), body)
+                                        vm.loadTable(selectedTable!!)
+                                    }
+                                }
+                                showEditDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                if (editRow == null) "Добавить" else "Сохранить",
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            },
+            title = { Text(if (editRow == null) "Добавить запись" else "Редактировать запись", color = Color.White) },
+            containerColor = TropicOnBackground,
+            text = {
+                Box(Modifier.verticalScroll(rememberScrollState())) {
+                    Column {
+                        columns.filter { it != "id" }.forEach { key ->
+                            OutlinedTextField(
+                                value = editValues[key] ?: "",
+                                onValueChange = { editValues = editValues.toMutableMap().apply { put(key, it) } },
+                                label = { Text(key, color = Color.White) },
+                                singleLine = false,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedContainerColor = TropicOnBackground,
+                                    unfocusedContainerColor = TropicOnBackground,
+                                    unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
+                                    focusedBorderColor = TropicTurquoise,
+                                    cursorColor = TropicTurquoise,
+                                    focusedLabelColor = Color.White,
+                                    unfocusedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
