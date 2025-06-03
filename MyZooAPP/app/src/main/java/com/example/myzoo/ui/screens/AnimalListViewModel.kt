@@ -204,6 +204,15 @@ class AnimalListViewModel : ViewModel() {
     fun clearSelectedAnimalDetails() {
         _selectedAnimalDetails.value = null
     }
+
+    suspend fun getOffspringCount(animalId: Int): String {
+        return try {
+            val response = repository.getOffspringCount(animalId)
+            "Потомков: ${response.offspring_count ?: 0}"
+        } catch (e: Exception) {
+            "Ошибка: ${e.message}"
+        }
+    }
 } 
  
  

@@ -117,6 +117,10 @@ class AnimalRepository {
     ) = withContext(Dispatchers.IO) {
         api.getExchangeQuery13(speciesId, orderBy, orderDir)
     }
+
+    suspend fun getOffspringCount(animalId: Int) = withContext(Dispatchers.IO) {
+        api.getOffspringCount(animalId)
+    }
 } 
  
  

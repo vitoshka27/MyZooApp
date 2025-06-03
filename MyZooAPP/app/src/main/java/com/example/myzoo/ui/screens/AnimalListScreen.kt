@@ -1,5 +1,6 @@
 package com.example.myzoo.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -353,6 +355,10 @@ fun AnimalListScreen(
     var filterAnimalIdTmp by remember { mutableStateOf<String?>(filterAnimalId) }
     var showAnimalDialog by remember { mutableStateOf(false) }
     var selectedAnimalId by remember { mutableStateOf<Int?>(null) }
+    var showFindOffspringDialog by remember { mutableStateOf(false) }
+    var selectedAnimalForOffspring by remember { mutableStateOf<Int?>(null) }
+    var offspringCountResult by remember { mutableStateOf<String?>(null) }
+    var isLoadingOffspring by remember { mutableStateOf(false) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -456,6 +462,29 @@ fun AnimalListScreen(
                         color = TropicOnPrimary,
                         modifier = Modifier.padding(start = 8.dp)
                     )
+                    Spacer(Modifier.weight(1f))
+                    TextButton(
+                        onClick = { showFindOffspringDialog = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        modifier = Modifier.offset(x = (-20).dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Найти потомков",
+                                tint = TropicOnPrimary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Column(
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Найти", color = TropicOnPrimary, fontSize = 13.sp, lineHeight = 14.sp)
+                                Text("потомков", color = TropicOnPrimary, fontSize = 13.sp, lineHeight = 14.sp)
+                            }
+                        }
+                    }
                 }
             }
             // --- Total/Query ---
@@ -845,7 +874,11 @@ fun AnimalListScreen(
         AlertDialog(
             onDismissRequest = { showAnimalDialog = false },
             confirmButton = {
-                TextButton(onClick = { showAnimalDialog = false }) { Text("Закрыть") }
+                Button(
+                    onClick = { showAnimalDialog = false },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TropicOrange)
+                ) { Text("Закрыть", color = Color.White) }
             },
             title = { Text("Детали животного") },
             text = {
@@ -871,8 +904,96 @@ fun AnimalListScreen(
                         Text("Болезни: ${animalDetails.diseases ?: "-"}")
                     }
                 }
-            }
+            },
+            containerColor = TropicOnBackground
         )
+    }
+
+    if (showFindOffspringDialog) {
+        Dialog(onDismissRequest = {
+            showFindOffspringDialog = false
+            selectedAnimalForOffspring = null
+            offspringCountResult = null
+            isLoadingOffspring = false
+        }) {
+            Box(
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .background(
+                        Color(0xFFEFFAF3),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .border(2.dp, TropicTurquoise, shape = RoundedCornerShape(24.dp))
+            ) {
+                Column(
+                    Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Найти потомков", style = MaterialTheme.typography.titleLarge, color = TropicTurquoise)
+                    Spacer(Modifier.height(18.dp))
+                    DropdownSelector(
+                        label = "Выберите животное",
+                        options = animalsAllMenu.map { it.id to it.name },
+                        selected = selectedAnimalForOffspring,
+                        onSelected = { selectedAnimalForOffspring = it },
+                        width = 260.dp
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    if (isLoadingOffspring) {
+                        CircularProgressIndicator(Modifier.size(28.dp), color = TropicTurquoise)
+                    } else {
+                        offspringCountResult?.let {
+                            val isCount = it.startsWith("Потомков:")
+                            Text(
+                                it,
+                                color = if (isCount) TropicGreen else TropicTurquoise,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(onClick = {
+                            showFindOffspringDialog = false
+                            selectedAnimalForOffspring = null
+                            offspringCountResult = null
+                            isLoadingOffspring = false
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TropicOrange),
+                        ) { Text("Закрыть", color = Color.White) }
+                        if (selectedAnimalForOffspring != null && !isLoadingOffspring) {
+                            Button(
+                                onClick = {
+                                    isLoadingOffspring = true
+                                    offspringCountResult = null
+                                    coroutineScope.launch {
+                                        val result = viewModel.getOffspringCount(selectedAnimalForOffspring!!)
+                                        offspringCountResult = result
+                                        isLoadingOffspring = false
+                                    }
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = TropicTurquoise),
+                                enabled = true
+                            ) {
+                                Text("Показать", color = Color.White)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {},
+                                enabled = false,
+                                border = BorderStroke(1.dp, TropicTurquoise),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Gray)
+                            ) {
+                                Text("Показать", color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

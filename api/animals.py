@@ -97,12 +97,9 @@ class AnimalResource(Resource):
 class AnimalOffspringCountResource(Resource):
     @active_user_required
     def get(self, id):
-        # Вызов процедуры get_all_offspring_count
-        result = db.session.execute(text('CALL get_all_offspring_count(:animal_id, @offspring_count); SELECT @offspring_count as offspring_count;'), {'animal_id': id})
-        # fetch the result from the second statement
-        for r in result:
-            pass  # skip the first result set (if any)
-        offspring_count = None
-        for row in result.cursor.fetchall():
-            offspring_count = row[0]
-        return {'animal_id': id, 'offspring_count': offspring_count} 
+        # Вызов процедуры
+        db.session.execute(text('CALL get_all_offspring_count(:animal_id, @offspring_count)'), {'animal_id': id})
+        # Получение результата
+        result = db.session.execute(text('SELECT @offspring_count as offspring_count'))
+        offspring_count = result.scalar()
+        return {'animal_id': id, 'offspring_count': offspring_count}

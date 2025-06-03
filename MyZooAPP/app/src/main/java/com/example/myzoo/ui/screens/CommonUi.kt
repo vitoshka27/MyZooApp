@@ -35,6 +35,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import java.util.Date
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun FilterRow(label: String, content: @Composable () -> Unit) {
@@ -96,23 +100,28 @@ fun <T> DropdownSelector(
                             shape = RoundedCornerShape(24.dp)
                         )
                 ) {
-                    Column {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onSelected(null)
-                                    expanded = false
-                                }
-                                .padding(horizontal = 20.dp, vertical = 16.dp)
-                        ) {
-                            Text(
-                                label,
-                                color = if (selected == null) TropicTurquoise else TropicOnBackground,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                    val maxHeight = 240.dp
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = maxHeight)
+                    ) {
+                        item {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSelected(null)
+                                        expanded = false
+                                    }
+                                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                            ) {
+                                Text(
+                                    label,
+                                    color = if (selected == null) TropicTurquoise else TropicOnBackground,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
                         }
-                        options.forEach { (value, text) ->
+                        items(options) { (value, text) ->
                             val isSelected = selected == value
                             Box(
                                 Modifier

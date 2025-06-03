@@ -192,6 +192,9 @@ interface ZooApiService {
         @Query("order_by") orderBy: String? = null,
         @Query("order_dir") orderDir: String? = null
     ): ProductionResponse
+
+    @GET("api/animals/{id}/offspring_count")
+    suspend fun getOffspringCount(@retrofit2.http.Path("id") animalId: Int): OffspringCountResponse
 }
 
 data class StaffCategoryDto(
@@ -201,6 +204,11 @@ data class StaffCategoryDto(
 
 data class StaffCategoryListResponse(
     val data: List<StaffCategoryDto>
+)
+
+data class OffspringCountResponse(
+    val animal_id: Int,
+    val offspring_count: Int?
 ) 
  
  

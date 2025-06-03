@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalContext
+import com.example.myzoo.ui.theme.TropicOrange
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -406,7 +407,11 @@ fun StaffListScreen(
             AlertDialog(
                 onDismissRequest = { showStaffDialog = false },
                 confirmButton = {
-                    TextButton(onClick = { showStaffDialog = false }) { Text("Закрыть") }
+                    Button(
+                        onClick = { showStaffDialog = false },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TropicOrange)
+                    ) { Text("Закрыть", color = Color.White) }
                 },
                 title = { Text("Детали сотрудника") },
                 text = {
@@ -427,7 +432,8 @@ fun StaffListScreen(
                             Text("Период: ${staff.start_date ?: "-"} — ${staff.end_date ?: "-"}")
                         }
                     }
-                }
+                },
+                containerColor = TropicOnBackground
             )
         }
     }
