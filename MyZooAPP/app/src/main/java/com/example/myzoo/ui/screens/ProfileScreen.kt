@@ -490,13 +490,10 @@ fun ProfileScreen(
         SettingsDrawer(
             visible = showSettingsDrawer,
             profile = profile,
+            navController = navController,
             onLogout = {
                 showSettingsDrawer = false
                 onLogout()
-            },
-            onAdminPanel = {
-                showSettingsDrawer = false
-                onAdminPanel()
             },
             onClose = { showSettingsDrawer = false },
             onChangePassword = { showChangePasswordDialog = true }
@@ -517,8 +514,8 @@ fun ProfileScreen(
 fun SettingsDrawer(
     visible: Boolean,
     profile: UserProfileResponse?,
+    navController: NavController,
     onLogout: () -> Unit = {},
-    onAdminPanel: () -> Unit = {},
     onClose: () -> Unit = {},
     onChangePassword: () -> Unit = {},
 ){
@@ -583,7 +580,10 @@ fun SettingsDrawer(
                             Spacer(Modifier.height(18.dp))
                             if (profile?.category_id == 5) {
                                 Button(
-                                    onClick = onAdminPanel,
+                                    onClick = {
+                                        onClose()
+                                        navController.navigate("admin_panel")
+                                    },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(20.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = TropicTurquoise)

@@ -195,6 +195,32 @@ interface ZooApiService {
 
     @GET("api/animals/{id}/offspring_count")
     suspend fun getOffspringCount(@retrofit2.http.Path("id") animalId: Int): OffspringCountResponse
+
+    // --- Универсальные методы для админ-панели ---
+    @GET("api/{table}")
+    suspend fun getAdminTable(
+        @retrofit2.http.Path("table") table: String,
+        @retrofit2.http.Query("limit") limit: Int = 1000
+    ): ApiModule.AdminTableResponse
+
+    @retrofit2.http.DELETE("api/{table}/{id}")
+    suspend fun deleteAdminTableRow(
+        @retrofit2.http.Path("table") table: String,
+        @retrofit2.http.Path("id") id: Int
+    ): ApiModule.AdminTableDeleteResponse
+
+    @retrofit2.http.POST("api/{table}")
+    suspend fun addAdminTableRow(
+        @retrofit2.http.Path("table") table: String,
+        @retrofit2.http.Body body: Map<String, Any?>
+    ): ApiModule.AdminTableEditResponse
+
+    @retrofit2.http.PUT("api/{table}/{id}")
+    suspend fun updateAdminTableRow(
+        @retrofit2.http.Path("table") table: String,
+        @retrofit2.http.Path("id") id: Int,
+        @retrofit2.http.Body body: Map<String, Any?>
+    ): ApiModule.AdminTableEditResponse
 }
 
 data class StaffCategoryDto(

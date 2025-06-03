@@ -276,7 +276,7 @@ class MainActivity : ComponentActivity() {
                                         Log.d(LOG_TAG, "Logout: complete")
                                     },
                                     onAdminPanel = {
-                                        navController.navigate("admin")
+                                        navController.navigate("admin_panel")
                                     },
                                     loginViewModel = loginViewModel,
                                     navController = navController
@@ -286,7 +286,9 @@ class MainActivity : ComponentActivity() {
                             composable("supplies") { SuppliesListScreen() }
                             composable("production") { ProductionListScreen() }
                             composable("exchange") { ExchangeListScreen() }
-                            composable("admin") { PlaceholderScreen("Админ-панель") }
+                            composable("admin_panel") {
+                                AdminPanelScreen(onBack = { navController.popBackStack() })
+                            }
                             composable("treatment") { PlaceholderScreen("Лечение") }
                             composable("medical") { PlaceholderScreen("Медосмотр") }
                             composable("feeding") { PlaceholderScreen("Кормление") }

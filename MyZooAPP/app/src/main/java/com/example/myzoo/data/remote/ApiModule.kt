@@ -108,6 +108,21 @@ object ApiModule {
         orderBy: String? = null,
         orderDir: String? = null
     ): List<ProductionItem> = zooApi.getProductionQuery9(feedTypeId, orderBy, orderDir).data
+
+    // --- Ответы для админ-панели ---
+    data class AdminTableResponse(
+        val data: List<Map<String, Any?>> = emptyList(),
+        val total: Int = 0,
+        val page: Int = 1,
+        val limit: Int = 20
+    )
+    data class AdminTableDeleteResponse(val success: Boolean, val msg: String?)
+    data class AdminTableEditResponse(val success: Boolean, val msg: String?)
+
+    suspend fun getAdminTable(table: String, limit: Int = 100): AdminTableResponse = zooApi.getAdminTable(table, limit)
+    suspend fun deleteAdminTableRow(table: String, id: Int): AdminTableDeleteResponse = zooApi.deleteAdminTableRow(table, id)
+    suspend fun addAdminTableRow(table: String, body: Map<String, Any?>): AdminTableEditResponse = zooApi.addAdminTableRow(table, body)
+    suspend fun updateAdminTableRow(table: String, id: Int, body: Map<String, Any?>): AdminTableEditResponse = zooApi.updateAdminTableRow(table, id, body)
 } 
  
  
