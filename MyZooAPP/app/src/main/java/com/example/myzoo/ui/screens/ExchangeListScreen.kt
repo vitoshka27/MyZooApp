@@ -148,7 +148,7 @@ fun ExchangeListScreen(viewModel: ExchangeListViewModel = viewModel()) {
                     ) {
                         Text(
                             when (sortField) {
-                                "partner_zoo" -> "Партнер"
+                                "partner_zoo" -> "Имя"
                                 "exchange_count" -> "Кол-во обменов"
                                 else -> sortField
                             },
@@ -191,7 +191,7 @@ fun ExchangeListScreen(viewModel: ExchangeListViewModel = viewModel()) {
                                 )
                         ) {
                             Column {
-                                listOf("partner_zoo" to "Партнер", "exchange_count" to "Кол-во обменов").forEach { (field, label) ->
+                                listOf("partner_zoo" to "Имя", "exchange_count" to "Кол-во обменов").forEach { (field, label) ->
                                     val isSelected = sortField == field
                                     Box(
                                         Modifier

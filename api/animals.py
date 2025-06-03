@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource, fields
 from .models import db, Animal
 from .decorators import role_required, active_user_required
 from flask import request
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 
 api = Namespace('animals', description='Операции с животными')
 
@@ -91,4 +91,18 @@ class AnimalResource(Resource):
         animal = Animal.query.get_or_404(id)
         db.session.delete(animal)
         db.session.commit()
-        return {'message': 'Животное удалено'} 
+        return {'message': 'Животное удалено'}
+
+@api.route('/<int:id>/offspring_count')
+class AnimalOffspringCountResource(Resource):
+    @active_user_required
+    def get(self, id):
+        # Вызов процедуры get_all_offspring_count
+        result = db.session.execute(text('CALL get_all_offspring_count(:animal_id, @offspring_count); SELECT @offspring_count as offspring_count;'), {'animal_id': id})
+        # fetch the result from the second statement
+        for r in result:
+            pass  # skip the first result set (if any)
+        offspring_count = None
+        for row in result.cursor.fetchall():
+            offspring_count = row[0]
+        return {'animal_id': id, 'offspring_count': offspring_count} 

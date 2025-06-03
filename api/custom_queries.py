@@ -680,9 +680,11 @@ class Query9Resource(Resource):
     @active_user_required
     @api.param('order_by', 'Поле сортировки', type=str)
     @api.param('order_dir', 'Направление сортировки', type=str)
+    @api.param('feed_type_id', 'ID типа корма', type=int)
     def get(self):
-        order_by = request.args.get('order_by')
+        order_by = request.args.get('order_dir', 'asc')
         order_dir = request.args.get('order_dir', 'asc')
+        feed_type_id = request.args.get('feed_type_id', type=int)
 
         sql = '''
         SELECT
@@ -695,11 +697,12 @@ class Query9Resource(Resource):
         JOIN feed_types ft ON fi.feed_type = ft.id
         LEFT JOIN feed_orders fo ON fi.id = fo.feed_item_id
         WHERE fo.id IS NULL
-        GROUP BY
-            fi.id,
-            fi.name,
-            ft.name
         '''
+        params = {}
+        if feed_type_id:
+            sql += ' AND ft.id = :feed_type_id'
+            params['feed_type_id'] = feed_type_id
+        sql += '\nGROUP BY fi.id, fi.name, ft.name'
         allowed_order = {'feed_item', 'feed_type', 'total_produced'}
         if order_by in allowed_order:
             sql += f' ORDER BY {order_by} '
@@ -721,7 +724,7 @@ class Query9Resource(Resource):
                     result[k] = v
             return result
 
-        result = db.session.execute(text(sql), {})
+        result = db.session.execute(text(sql), params)
         rows = [serialize_row(row) for row in result.mappings()]
         return {'data': rows}
 
