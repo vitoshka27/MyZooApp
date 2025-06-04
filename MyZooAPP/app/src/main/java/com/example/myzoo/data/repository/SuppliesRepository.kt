@@ -31,6 +31,7 @@ class ProductionRepository {
     suspend fun getProductionsQuery9(
         feedTypeId: Int? = null,
         orderBy: String? = null,
-        orderDir: String? = null
-    ): List<ProductionItem> = ApiModule.getProductionQuery9(feedTypeId, orderBy, orderDir)
+        orderDir: String? = null,
+        onlyActual: Int? = null
+    ): List<ProductionItem> = ApiModule.getProductionQuery9(feedTypeId, orderBy, orderDir, onlyActual)
 } 

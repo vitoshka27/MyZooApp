@@ -8,4 +8,14 @@ data class ProductionItem(
 )
 data class ProductionResponse(
     val data: List<ProductionItem>
+)
+data class FeedInventoryItem(
+    val id: Int,
+    val feed_item_id: Int,
+    val quantity: Float?,
+    val received_date: String?
+)
+data class FeedInventoryResponse(
+    val total: Int?,
+    val data: List<FeedInventoryItem>
 ) 

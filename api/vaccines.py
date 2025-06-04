@@ -31,14 +31,11 @@ class VaccineList(Resource):
             else:
                 query = query.order_by(col)
         page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 20, type=int)
-        pagination = query.paginate(page=page, per_page=limit, error_out=False)
-        items = [v.to_dict() for v in pagination.items]
+        items = query.all()
         return {
-            'total': pagination.total,
+            'total': len(items),
             'page': page,
-            'limit': limit,
-            'data': items
+            'data': [v.to_dict() for v in items]
         }
 
     @active_user_required

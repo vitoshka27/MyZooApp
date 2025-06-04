@@ -108,8 +108,11 @@ object ApiModule {
     suspend fun getProductionQuery9(
         feedTypeId: Int? = null,
         orderBy: String? = null,
-        orderDir: String? = null
-    ): List<ProductionItem> = zooApi.getProductionQuery9(feedTypeId, orderBy, orderDir).data
+        orderDir: String? = null,
+        onlyActual: Int? = null
+    ): List<ProductionItem> = zooApi.getProductionQuery9(feedTypeId, orderBy, orderDir, onlyActual).data
+
+    suspend fun getFeedInventory(): List<FeedInventoryItem> = zooApi.getFeedInventory().data
 
     // --- Ответы для админ-панели ---
     data class AdminTableResponse(
@@ -145,6 +148,8 @@ object ApiModule {
     }
     suspend fun addAdminTableRow(table: String, body: Map<String, String>): AdminTableEditResponse = zooApi.addAdminTableRow(table, body)
     suspend fun updateAdminTableRow(table: String, id: Int, body: Map<String, String>): AdminTableEditResponse = zooApi.updateAdminTableRow(table, id, body)
+
+    suspend fun getZooExchanges(): List<Map<String, Any?>> = getAdminTable("zoo_exchanges").data
 } 
  
  

@@ -7,7 +7,7 @@ import com.example.myzoo.data.repository.SuppliesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import com.example.myzoo.data.remote.FeedTypeDto
+import com.example.myzoo.data.remote.FeedItemDto
 import com.example.myzoo.data.remote.FeedOrderItem
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
@@ -16,13 +16,13 @@ class SuppliesViewModel : ViewModel() {
     private val repository = SuppliesRepository()
     private val _supplies = MutableStateFlow<List<SuppliesItem>>(emptyList())
     val supplies: StateFlow<List<SuppliesItem>> = _supplies
-    private val _feedTypes = MutableStateFlow<List<FeedTypeDto>>(emptyList())
-    val feedTypes: StateFlow<List<FeedTypeDto>> = _feedTypes
+    private val _feedItems = MutableStateFlow<List<FeedItemDto>>(emptyList())
+    val feedItems: StateFlow<List<FeedItemDto>> = _feedItems
     private val _feedOrders = mutableStateOf<List<FeedOrderItem>>(emptyList())
     val feedOrders: State<List<FeedOrderItem>> = _feedOrders
 
     init {
-        loadFeedTypes()
+        loadFeedItems()
     }
 
     fun loadSupplies(params: Map<String, Any?> = emptyMap()) {
@@ -47,10 +47,10 @@ class SuppliesViewModel : ViewModel() {
         }
     }
 
-    private fun loadFeedTypes() {
+    private fun loadFeedItems() {
         viewModelScope.launch {
             try {
-                _feedTypes.value = com.example.myzoo.data.remote.ApiModule.zooApi.getFeedTypes().data
+                _feedItems.value = com.example.myzoo.data.remote.ApiModule.zooApi.getFeedItems().data
             } catch (_: Exception) {}
         }
     }

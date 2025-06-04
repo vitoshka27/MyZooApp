@@ -192,7 +192,8 @@ interface ZooApiService {
     suspend fun getProductionQuery9(
         @Query("feed_type_id") feedTypeId: Int? = null,
         @Query("order_by") orderBy: String? = null,
-        @Query("order_dir") orderDir: String? = null
+        @Query("order_dir") orderDir: String? = null,
+        @Query("only_actual") onlyActual: Int? = null
     ): ProductionResponse
 
     @GET("api/animals/{id}/offspring_count")
@@ -200,6 +201,12 @@ interface ZooApiService {
 
     @GET("api/feed_orders/")
     suspend fun getFeedOrders(): FeedOrdersResponse
+
+    @GET("api/feed_items/")
+    suspend fun getFeedItems(): FeedItemListResponse
+
+    @GET("api/feed_inventory")
+    suspend fun getFeedInventory(): FeedInventoryResponse
 
     // --- Универсальные методы для админ-панели ---
     @GET("api/{table}")

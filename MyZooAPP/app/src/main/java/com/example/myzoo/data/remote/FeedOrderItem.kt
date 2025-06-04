@@ -13,4 +13,13 @@ data class FeedOrderItem(
 
 data class FeedOrdersResponse(
     val data: List<FeedOrderItem>
+)
+
+data class FeedItemDto(
+    val id: Int,
+    val name: String
+)
+
+data class FeedItemListResponse(
+    val data: List<FeedItemDto>
 ) 

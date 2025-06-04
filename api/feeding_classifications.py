@@ -28,14 +28,9 @@ class FeedingClassificationList(Resource):
                 query = query.order_by(desc(col))
             else:
                 query = query.order_by(col)
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 20, type=int)
-        pagination = query.paginate(page=page, per_page=limit, error_out=False)
-        items = [c.to_dict() for c in pagination.items]
+        items = [c.to_dict() for c in query.all()]
         return {
-            'total': pagination.total,
-            'page': page,
-            'limit': limit,
+            'total': len(items),
             'data': items
         }
 

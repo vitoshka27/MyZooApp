@@ -50,13 +50,14 @@ import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.platform.LocalDensity
-import com.example.myzoo.data.remote.FeedTypeDto
+import com.example.myzoo.data.remote.FeedItemDto
 import com.example.myzoo.ui.theme.TropicOrange
+import android.util.Log
 
 enum class SuppliesTab { ORDERS, SUPPLIERS }
 
 val LocalSupplies = compositionLocalOf<List<SuppliesItem>> { emptyList() }
-val LocalFeedTypes = compositionLocalOf<List<FeedTypeDto>> { emptyList() }
+val LocalFeedItems = compositionLocalOf<List<FeedItemDto>> { emptyList() }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +65,7 @@ fun SuppliesListScreen(
     viewModel: SuppliesViewModel = viewModel()
 ) {
     val supplies by viewModel.supplies.collectAsState()
-    val feedTypes by viewModel.feedTypes.collectAsState()
+    val feedItems by viewModel.feedItems.collectAsState()
     val feedOrders by viewModel.feedOrders
     var sortField by remember { mutableStateOf("name") }
     var sortDir by remember { mutableStateOf("asc") }
@@ -108,6 +109,13 @@ fun SuppliesListScreen(
     var burgerButtonHeight by remember { mutableStateOf(0) }
     var burgerButtonWidth by remember { mutableStateOf(0) }
 
+    var filterSupplierId by remember { mutableStateOf<Int?>(null) }
+    var filterFeedItemId by remember { mutableStateOf<Int?>(null) }
+    var filterActualOnly by remember { mutableStateOf(false) }
+    var tmpSupplierId by remember { mutableStateOf(filterSupplierId) }
+    var tmpFeedItemId by remember { mutableStateOf(filterFeedItemId) }
+    var tmpActualOnly by remember { mutableStateOf(filterActualOnly) }
+
     // --- Автоматическая загрузка данных ---
     LaunchedEffect(sortField, sortDir, filterFeedTypeId, filterOrderDateStart, filterOrderDateEnd, filterQuantityMin, filterQuantityMax, filterPriceMin, filterPriceMax, filterDeliveryDateStart, filterDeliveryDateEnd) {
         val params = mutableMapOf<String, Any?>()
@@ -127,12 +135,14 @@ fun SuppliesListScreen(
     // --- Загрузка заказов при выборе вкладки ---
     LaunchedEffect(selectedTab) {
         if (selectedTab == SuppliesTab.ORDERS) {
+            viewModel.loadSupplies()
             viewModel.loadFeedOrders()
         }
+        sortField = if (selectedTab == SuppliesTab.ORDERS) "price" else "name"
     }
     CompositionLocalProvider(
         LocalSupplies provides supplies,
-        LocalFeedTypes provides feedTypes
+        LocalFeedItems provides feedItems
     ) {
         Box(
             Modifier
@@ -259,7 +269,7 @@ fun SuppliesListScreen(
                     )
                 }
                 // --- Полоска фильтров/сортировки ---
-                if (selectedTab == SuppliesTab.SUPPLIERS) {
+                if (selectedTab == SuppliesTab.SUPPLIERS || selectedTab == SuppliesTab.ORDERS) {
                     Surface(
                         tonalElevation = 2.dp,
                         shadowElevation = 2.dp,
@@ -301,16 +311,22 @@ fun SuppliesListScreen(
                                             sortButtonWidth = coords.size.width
                                         }
                                 ) {
-                                    Text(
+                                    val sortLabel = if (selectedTab == SuppliesTab.ORDERS) {
+                                        when (sortField) {
+                                            "price" -> "Цена"
+                                            "ordered_quantity" -> "Объем"
+                                            else -> sortField
+                                        }
+                                    } else {
                                         when (sortField) {
                                             "name" -> "Имя"
                                             "order_count" -> "Кол-во заказов"
-                                            "total_ordered_quantity" -> "Объем"
+                                            "total_ordered_quantity" -> "Общий объём"
                                             "avg_price" -> "Средняя цена"
                                             else -> sortField
-                                        },
-                                        color = TropicTurquoise
-                                    )
+                                        }
+                                    }
+                                    Text(sortLabel, color = TropicTurquoise)
                                 }
                                 IconButton(
                                     onClick = { sortDir = if (sortDir == "asc") "desc" else "asc" },
@@ -351,12 +367,16 @@ fun SuppliesListScreen(
                                             )
                                     ) {
                                         Column {
-                                            listOf(
+                                            val sortOptions = if (selectedTab == SuppliesTab.ORDERS) listOf(
+                                                "price" to "Цена",
+                                                "ordered_quantity" to "Объем"
+                                            ) else listOf(
                                                 "name" to "Имя",
                                                 "order_count" to "Кол-во заказов",
                                                 "total_ordered_quantity" to "Общий объём",
                                                 "avg_price" to "Средняя цена"
-                                            ).forEach { (field, label) ->
+                                            )
+                                            sortOptions.forEach { (field, label) ->
                                                 val isSelected = sortField == field
                                                 Box(
                                                     Modifier
@@ -391,6 +411,9 @@ fun SuppliesListScreen(
                             tmpPriceMax = filterPriceMax
                             tmpDeliveryDateStart = filterDeliveryDateStart
                             tmpDeliveryDateEnd = filterDeliveryDateEnd
+                            tmpSupplierId = filterSupplierId
+                            tmpFeedItemId = filterFeedItemId
+                            tmpActualOnly = filterActualOnly
                             showFilterSheet = false
                         },
                         shape = RoundedCornerShape(0.dp),
@@ -419,192 +442,234 @@ fun SuppliesListScreen(
                         Column(Modifier.padding(16.dp)) {
                             Text("Фильтры", style = MaterialTheme.typography.titleLarge, color = TropicTurquoise)
                             Spacer(Modifier.height(18.dp))
-                            FilterRow(label = "Тип корма") {
-                                DropdownSelector(
-                                    label = "Не выбрано",
-                                    options = feedTypes.map { it.id to it.name },
-                                    selected = tmpFeedTypeId,
-                                    onSelected = { tmpFeedTypeId = it },
-                                    width = dropdownWidth
-                                )
-                            }
-                            FilterRow(label = "Объём заказа") {
-                                Row(Modifier.width(dropdownWidth), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    OutlinedTextField(
-                                        value = tmpQuantityMin,
-                                        onValueChange = { tmpQuantityMin = it },
-                                        label = { Text("от", color = Color.Gray) },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f),
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedTextColor = TropicOnBackground,
-                                            unfocusedTextColor = TropicOnBackground,
-                                            focusedContainerColor = Color.White,
-                                            unfocusedContainerColor = Color.White,
-                                            unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
-                                            focusedBorderColor = TropicTurquoise,
-                                            cursorColor = TropicTurquoise,
-                                            focusedLabelColor = Color.Gray,
-                                            unfocusedLabelColor = Color.Gray
-                                        ),
-                                        shape = RoundedCornerShape(16.dp)
-                                    )
-                                    OutlinedTextField(
-                                        value = tmpQuantityMax,
-                                        onValueChange = { tmpQuantityMax = it },
-                                        label = { Text("до", color = Color.Gray) },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f),
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedTextColor = TropicOnBackground,
-                                            unfocusedTextColor = TropicOnBackground,
-                                            focusedContainerColor = Color.White,
-                                            unfocusedContainerColor = Color.White,
-                                            unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
-                                            focusedBorderColor = TropicTurquoise,
-                                            cursorColor = TropicTurquoise,
-                                            focusedLabelColor = Color.Gray,
-                                            unfocusedLabelColor = Color.Gray
-                                        ),
-                                        shape = RoundedCornerShape(16.dp)
+                            if (selectedTab == SuppliesTab.ORDERS) {
+                                FilterRow(label = "Поставщик") {
+                                    DropdownSelector(
+                                        label = "Не выбрано",
+                                        options = supplies.map { it.id to it.name },
+                                        selected = tmpSupplierId,
+                                        onSelected = { tmpSupplierId = it },
+                                        width = dropdownWidth
                                     )
                                 }
-                            }
-                            FilterRow(label = "Цена") {
-                                Row(Modifier.width(dropdownWidth), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    OutlinedTextField(
-                                        value = tmpPriceMin,
-                                        onValueChange = { tmpPriceMin = it },
-                                        label = { Text("от", color = Color.Gray) },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f),
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedTextColor = TropicOnBackground,
-                                            unfocusedTextColor = TropicOnBackground,
-                                            focusedContainerColor = Color.White,
-                                            unfocusedContainerColor = Color.White,
-                                            unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
-                                            focusedBorderColor = TropicTurquoise,
-                                            cursorColor = TropicTurquoise,
-                                            focusedLabelColor = Color.Gray,
-                                            unfocusedLabelColor = Color.Gray
-                                        ),
-                                        shape = RoundedCornerShape(16.dp)
-                                    )
-                                    OutlinedTextField(
-                                        value = tmpPriceMax,
-                                        onValueChange = { tmpPriceMax = it },
-                                        label = { Text("до", color = Color.Gray) },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f),
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedTextColor = TropicOnBackground,
-                                            unfocusedTextColor = TropicOnBackground,
-                                            focusedContainerColor = Color.White,
-                                            unfocusedContainerColor = Color.White,
-                                            unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
-                                            focusedBorderColor = TropicTurquoise,
-                                            cursorColor = TropicTurquoise,
-                                            focusedLabelColor = Color.Gray,
-                                            unfocusedLabelColor = Color.Gray
-                                        ),
-                                        shape = RoundedCornerShape(16.dp)
+                                FilterRow(label = "Корм") {
+                                    DropdownSelector(
+                                        label = "Не выбрано",
+                                        options = feedItems.map { it.id to it.name },
+                                        selected = tmpFeedItemId,
+                                        onSelected = { tmpFeedItemId = it },
+                                        width = dropdownWidth
                                     )
                                 }
-                            }
-                            FilterRow(label = "Дата заказа") {
-                                Column(Modifier.width(dropdownWidth)) {
-                                    OutlinedButton(
-                                        onClick = { showOrderDateStartPicker = true },
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, TropicTurquoise),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+                                FilterRow(label = "Актуальный") {
+                                    Box(
+                                        Modifier
+                                            .height(44.dp)
+                                            .width(44.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        val text = tmpOrderDateStart.takeIf { it.isNotBlank() }?.let {
-                                            try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
-                                        } ?: "от"
-                                        Text(text, color = if (tmpOrderDateStart.isBlank()) Color.Gray else TropicTurquoise)
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                    OutlinedButton(
-                                        onClick = { showOrderDateEndPicker = true },
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, TropicTurquoise),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
-                                    ) {
-                                        val text = tmpOrderDateEnd.takeIf { it.isNotBlank() }?.let {
-                                            try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
-                                        } ?: "до"
-                                        Text(text, color = if (tmpOrderDateEnd.isBlank()) Color.Gray else TropicTurquoise)
+                                        Checkbox(
+                                            checked = tmpActualOnly,
+                                            onCheckedChange = { tmpActualOnly = it },
+                                            modifier = Modifier
+                                                .offset(x = (-67).dp),
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = TropicTurquoise,
+                                                checkmarkColor = Color.White
+                                            )
+                                        )
                                     }
                                 }
+                                Spacer(Modifier.height(8.dp))
                             }
-                            if (showOrderDateStartPicker) {
-                                DatePickerDialog(
-                                    initialDate = tmpOrderDateStart,
-                                    onDateSelected = { tmpOrderDateStart = it; showOrderDateStartPicker = false },
-                                    onDismiss = { showOrderDateStartPicker = false }
-                                )
-                            }
-                            if (showOrderDateEndPicker) {
-                                DatePickerDialog(
-                                    initialDate = tmpOrderDateEnd,
-                                    onDateSelected = { tmpOrderDateEnd = it; showOrderDateEndPicker = false },
-                                    onDismiss = { showOrderDateEndPicker = false }
-                                )
-                            }
-                            FilterRow(label = "Дата поставки") {
-                                Column(Modifier.width(dropdownWidth)) {
-                                    OutlinedButton(
-                                        onClick = { showDeliveryDateStartPicker = true },
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, TropicTurquoise),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
-                                    ) {
-                                        val text = tmpDeliveryDateStart.takeIf { it.isNotBlank() }?.let {
-                                            try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
-                                        } ?: "от"
-                                        Text(text, color = if (tmpDeliveryDateStart.isBlank()) Color.Gray else TropicTurquoise)
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                    OutlinedButton(
-                                        onClick = { showDeliveryDateEndPicker = true },
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, TropicTurquoise),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
-                                    ) {
-                                        val text = tmpDeliveryDateEnd.takeIf { it.isNotBlank() }?.let {
-                                            try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
-                                        } ?: "до"
-                                        Text(text, color = if (tmpDeliveryDateEnd.isBlank()) Color.Gray else TropicTurquoise)
+                            if (selectedTab == SuppliesTab.SUPPLIERS) {
+                                FilterRow(label = "Тип корма") {
+                                    DropdownSelector(
+                                        label = "Не выбрано",
+                                        options = feedItems.map { it.id to it.name },
+                                        selected = tmpFeedTypeId,
+                                        onSelected = { tmpFeedTypeId = it },
+                                        width = dropdownWidth
+                                    )
+                                }
+                                FilterRow(label = "Объём заказа") {
+                                    Row(Modifier.width(dropdownWidth), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        OutlinedTextField(
+                                            value = tmpQuantityMin,
+                                            onValueChange = { tmpQuantityMin = it },
+                                            label = { Text("от", color = Color.Gray) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedTextColor = TropicOnBackground,
+                                                unfocusedTextColor = TropicOnBackground,
+                                                focusedContainerColor = Color.White,
+                                                unfocusedContainerColor = Color.White,
+                                                unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
+                                                focusedBorderColor = TropicTurquoise,
+                                                cursorColor = TropicTurquoise,
+                                                focusedLabelColor = Color.Gray,
+                                                unfocusedLabelColor = Color.Gray
+                                            ),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        OutlinedTextField(
+                                            value = tmpQuantityMax,
+                                            onValueChange = { tmpQuantityMax = it },
+                                            label = { Text("до", color = Color.Gray) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedTextColor = TropicOnBackground,
+                                                unfocusedTextColor = TropicOnBackground,
+                                                focusedContainerColor = Color.White,
+                                                unfocusedContainerColor = Color.White,
+                                                unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
+                                                focusedBorderColor = TropicTurquoise,
+                                                cursorColor = TropicTurquoise,
+                                                focusedLabelColor = Color.Gray,
+                                                unfocusedLabelColor = Color.Gray
+                                            ),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
                                     }
                                 }
-                            }
-                            if (showDeliveryDateStartPicker) {
-                                DatePickerDialog(
-                                    initialDate = tmpDeliveryDateStart,
-                                    onDateSelected = { tmpDeliveryDateStart = it; showDeliveryDateStartPicker = false },
-                                    onDismiss = { showDeliveryDateStartPicker = false }
-                                )
-                            }
-                            if (showDeliveryDateEndPicker) {
-                                DatePickerDialog(
-                                    initialDate = tmpDeliveryDateEnd,
-                                    onDateSelected = { tmpDeliveryDateEnd = it; showDeliveryDateEndPicker = false },
-                                    onDismiss = { showDeliveryDateEndPicker = false }
-                                )
+                                FilterRow(label = "Цена") {
+                                    Row(Modifier.width(dropdownWidth), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        OutlinedTextField(
+                                            value = tmpPriceMin,
+                                            onValueChange = { tmpPriceMin = it },
+                                            label = { Text("от", color = Color.Gray) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedTextColor = TropicOnBackground,
+                                                unfocusedTextColor = TropicOnBackground,
+                                                focusedContainerColor = Color.White,
+                                                unfocusedContainerColor = Color.White,
+                                                unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
+                                                focusedBorderColor = TropicTurquoise,
+                                                cursorColor = TropicTurquoise,
+                                                focusedLabelColor = Color.Gray,
+                                                unfocusedLabelColor = Color.Gray
+                                            ),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        OutlinedTextField(
+                                            value = tmpPriceMax,
+                                            onValueChange = { tmpPriceMax = it },
+                                            label = { Text("до", color = Color.Gray) },
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TropicOnBackground),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedTextColor = TropicOnBackground,
+                                                unfocusedTextColor = TropicOnBackground,
+                                                focusedContainerColor = Color.White,
+                                                unfocusedContainerColor = Color.White,
+                                                unfocusedBorderColor = TropicTurquoise.copy(alpha = 0.2f),
+                                                focusedBorderColor = TropicTurquoise,
+                                                cursorColor = TropicTurquoise,
+                                                focusedLabelColor = Color.Gray,
+                                                unfocusedLabelColor = Color.Gray
+                                            ),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                    }
+                                }
+                                FilterRow(label = "Дата заказа") {
+                                    Column(Modifier.width(dropdownWidth)) {
+                                        OutlinedButton(
+                                            onClick = { showOrderDateStartPicker = true },
+                                            shape = RoundedCornerShape(24.dp),
+                                            border = BorderStroke(1.dp, TropicTurquoise),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+                                        ) {
+                                            val text = tmpOrderDateStart.takeIf { it.isNotBlank() }?.let {
+                                                try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
+                                            } ?: "от"
+                                            Text(text, color = if (tmpOrderDateStart.isBlank()) Color.Gray else TropicTurquoise)
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        OutlinedButton(
+                                            onClick = { showOrderDateEndPicker = true },
+                                            shape = RoundedCornerShape(24.dp),
+                                            border = BorderStroke(1.dp, TropicTurquoise),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+                                        ) {
+                                            val text = tmpOrderDateEnd.takeIf { it.isNotBlank() }?.let {
+                                                try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
+                                            } ?: "до"
+                                            Text(text, color = if (tmpOrderDateEnd.isBlank()) Color.Gray else TropicTurquoise)
+                                        }
+                                    }
+                                }
+                                if (showOrderDateStartPicker) {
+                                    DatePickerDialog(
+                                        initialDate = tmpOrderDateStart,
+                                        onDateSelected = { tmpOrderDateStart = it; showOrderDateStartPicker = false },
+                                        onDismiss = { showOrderDateStartPicker = false }
+                                    )
+                                }
+                                if (showOrderDateEndPicker) {
+                                    DatePickerDialog(
+                                        initialDate = tmpOrderDateEnd,
+                                        onDateSelected = { tmpOrderDateEnd = it; showOrderDateEndPicker = false },
+                                        onDismiss = { showOrderDateEndPicker = false }
+                                    )
+                                }
+                                FilterRow(label = "Дата поставки") {
+                                    Column(Modifier.width(dropdownWidth)) {
+                                        OutlinedButton(
+                                            onClick = { showDeliveryDateStartPicker = true },
+                                            shape = RoundedCornerShape(24.dp),
+                                            border = BorderStroke(1.dp, TropicTurquoise),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+                                        ) {
+                                            val text = tmpDeliveryDateStart.takeIf { it.isNotBlank() }?.let {
+                                                try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
+                                            } ?: "от"
+                                            Text(text, color = if (tmpDeliveryDateStart.isBlank()) Color.Gray else TropicTurquoise)
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        OutlinedButton(
+                                            onClick = { showDeliveryDateEndPicker = true },
+                                            shape = RoundedCornerShape(24.dp),
+                                            border = BorderStroke(1.dp, TropicTurquoise),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+                                        ) {
+                                            val text = tmpDeliveryDateEnd.takeIf { it.isNotBlank() }?.let {
+                                                try { java.time.LocalDate.parse(it).format(displayFormatter) } catch (_: Exception) { it }
+                                            } ?: "до"
+                                            Text(text, color = if (tmpDeliveryDateEnd.isBlank()) Color.Gray else TropicTurquoise)
+                                        }
+                                    }
+                                }
+                                if (showDeliveryDateStartPicker) {
+                                    DatePickerDialog(
+                                        initialDate = tmpDeliveryDateStart,
+                                        onDateSelected = { tmpDeliveryDateStart = it; showDeliveryDateStartPicker = false },
+                                        onDismiss = { showDeliveryDateStartPicker = false }
+                                    )
+                                }
+                                if (showDeliveryDateEndPicker) {
+                                    DatePickerDialog(
+                                        initialDate = tmpDeliveryDateEnd,
+                                        onDateSelected = { tmpDeliveryDateEnd = it; showDeliveryDateEndPicker = false },
+                                        onDismiss = { showDeliveryDateEndPicker = false }
+                                    )
+                                }
                             }
                             Spacer(Modifier.height(16.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -618,6 +683,9 @@ fun SuppliesListScreen(
                                     tmpPriceMax = ""
                                     tmpDeliveryDateStart = ""
                                     tmpDeliveryDateEnd = ""
+                                    tmpSupplierId = null
+                                    tmpFeedItemId = null
+                                    tmpActualOnly = false
                                     filterFeedTypeId = null
                                     filterOrderDateStart = ""
                                     filterOrderDateEnd = ""
@@ -627,6 +695,9 @@ fun SuppliesListScreen(
                                     filterPriceMax = ""
                                     filterDeliveryDateStart = ""
                                     filterDeliveryDateEnd = ""
+                                    filterSupplierId = null
+                                    filterFeedItemId = null
+                                    filterActualOnly = false
                                     showFilterSheet = false
                                 }) { Text("Сбросить фильтры", color = TropicGreen) }
                                 Button(
@@ -640,6 +711,9 @@ fun SuppliesListScreen(
                                         filterPriceMax = tmpPriceMax
                                         filterDeliveryDateStart = tmpDeliveryDateStart
                                         filterDeliveryDateEnd = tmpDeliveryDateEnd
+                                        filterSupplierId = tmpSupplierId
+                                        filterFeedItemId = tmpFeedItemId
+                                        filterActualOnly = tmpActualOnly
                                         showFilterSheet = false
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = TropicTurquoise)
@@ -657,6 +731,24 @@ fun SuppliesListScreen(
                         val itemsList = when (selectedTab) {
                             SuppliesTab.SUPPLIERS -> supplies
                             SuppliesTab.ORDERS -> feedOrders
+                        }.let { list ->
+                            if (selectedTab == SuppliesTab.ORDERS) {
+                                val filtered = list.filter { item ->
+                                    val order = item as? FeedOrderItem
+                                    if (order != null) {
+                                        (filterSupplierId == null || order.feed_supplier_id == filterSupplierId) &&
+                                        (filterFeedItemId == null || order.feed_item_id == filterFeedItemId) &&
+                                        (!filterActualOnly || order.delivery_date == null)
+                                    } else true
+                                }
+                                // --- Сортировка заказов ---
+                                val sorted = when (sortField) {
+                                    "price" -> if (sortDir == "asc") filtered.sortedBy { (it as FeedOrderItem).price } else filtered.sortedByDescending { (it as FeedOrderItem).price }
+                                    "ordered_quantity" -> if (sortDir == "asc") filtered.sortedBy { (it as FeedOrderItem).ordered_quantity } else filtered.sortedByDescending { (it as FeedOrderItem).ordered_quantity }
+                                    else -> filtered
+                                }
+                                sorted
+                            } else list
                         }
                         if (itemsList.isEmpty()) {
                             item {
@@ -666,7 +758,17 @@ fun SuppliesListScreen(
                             }
                         } else {
                             items(itemsList) { item ->
-                                SupplyUnifiedCard(item)
+                                if (selectedTab == SuppliesTab.SUPPLIERS) {
+                                    val supplier = item as? SuppliesItem
+                                    SupplyUnifiedCard(item) {
+                                        supplier?.let {
+                                            filterSupplierId = it.id
+                                            selectedTab = SuppliesTab.ORDERS
+                                        }
+                                    }
+                                } else {
+                                    SupplyUnifiedCard(item)
+                                }
                                 Spacer(Modifier.height(8.dp))
                             }
                         }
@@ -678,16 +780,26 @@ fun SuppliesListScreen(
 }
 
 @Composable
-fun SupplyUnifiedCard(item: Any) {
+fun SupplyUnifiedCard(item: Any, onClick: (() -> Unit)? = null) {
     val isSupplier = item is SuppliesItem
     val isOrder = item is FeedOrderItem
     val decimalFormat = remember { DecimalFormat("#") }
     val supplies = LocalSupplies.current
-    val feedTypes = LocalFeedTypes.current
+    val feedItems = LocalFeedItems.current
+
+    // --- DEBUG LOGS ---
+    if (isOrder) {
+        val order = item as FeedOrderItem
+        Log.d("SupplyDebug", "supplies: ${supplies.map { it.id to it.name }}")
+        Log.d("SupplyDebug", "feedItems: ${feedItems.map { it.id to it.name }}")
+        Log.d("SupplyDebug", "order.feed_supplier_id: ${order.feed_supplier_id}, order.feed_item_id: ${order.feed_item_id}")
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp)
+            .let { if (onClick != null) it.clickable { onClick() } else it },
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
@@ -717,15 +829,15 @@ fun SupplyUnifiedCard(item: Any) {
                         Text("Телефон: ${supplier.phone ?: "-"}", color = TropicOnBackground)
                         Text("Адрес: ${supplier.address ?: "-"}", color = TropicOnBackground)
                         Text("Кол-во заказов: ${supplier.order_count ?: "-"}", color = TropicOnBackground)
-                        Text("Общий объем: ${supplier.total_ordered_quantity?.let { decimalFormat.format(it) } ?: "-"}", color = TropicOnBackground)
+                        Text("Общий объем: ${supplier.total_ordered_quantity?.let { decimalFormat.format(it) } ?: "-"} кг", color = TropicOnBackground)
                         Text("Средняя цена: ${supplier.avg_price?.let { decimalFormat.format(it) } ?: "-"}", color = TropicGreen)
                     } else if (isOrder) {
                         val order = item as FeedOrderItem
                         val supplierName = supplies.firstOrNull { it.id == order.feed_supplier_id }?.name ?: order.feed_supplier_id.toString()
-                        val feedName = feedTypes.firstOrNull { it.id == order.feed_item_id }?.name ?: order.feed_item_id.toString()
+                        val feedName = feedItems.firstOrNull { it.id == order.feed_item_id }?.name ?: order.feed_item_id.toString()
+                        Text(feedName, fontWeight = FontWeight.Bold, color = TropicOnBackground, maxLines = 1)
                         Text("Поставщик: $supplierName", color = TropicOnBackground)
-                        Text("Корм: $feedName", color = TropicOnBackground)
-                        Text("Объем: ${decimalFormat.format(order.ordered_quantity)}", color = TropicOnBackground)
+                        Text("Объем: ${decimalFormat.format(order.ordered_quantity)} кг", color = TropicOnBackground)
                         Text("Дата заказа: ${order.order_date}", color = TropicOnBackground)
                         Text("Дата поставки: ${order.delivery_date ?: "-"}", color = TropicOnBackground)
                         Text("Цена: ${decimalFormat.format(order.price)}", color = TropicGreen)

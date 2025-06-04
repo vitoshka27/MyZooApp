@@ -604,7 +604,8 @@ class Query8Resource(Resource):
 
         sql = '''
         SELECT
-        	fs.name,
+            fs.id AS id,
+            fs.name,
             fs.phone,
             fs.address,
             COUNT(DISTINCT fo.id) AS order_count,
@@ -613,12 +614,11 @@ class Query8Resource(Resource):
             COUNT(*) OVER () AS total_suppliers
         FROM feed_suppliers fs
         JOIN feed_orders fo ON fs.id = fo.feed_supplier_id
-        JOIN supplier_feed_types sft ON fs.id = sft.supplier_id
         WHERE 1=1
         '''
         params = {}
         if feed_type_id:
-            sql += ' AND sft.feed_type_id = :feed_type_id'
+            sql += ' AND fs.id IN (SELECT sft.supplier_id FROM supplier_feed_types sft WHERE sft.feed_type_id = :feed_type_id)'
             params['feed_type_id'] = feed_type_id
         if order_date_start:
             sql += ' AND fo.order_date >= :order_date_start'
@@ -678,10 +678,12 @@ class Query9Resource(Resource):
     @api.param('order_by', 'Поле сортировки', type=str)
     @api.param('order_dir', 'Направление сортировки', type=str)
     @api.param('feed_type_id', 'ID типа корма', type=int)
+    @api.param('only_actual', 'Только те, что не нуждаются в поставках (fo.id is null)', type=int)
     def get(self):
-        order_by = request.args.get('order_dir', 'asc')
+        order_by = request.args.get('order_by', 'feed_item')
         order_dir = request.args.get('order_dir', 'asc')
         feed_type_id = request.args.get('feed_type_id', type=int)
+        only_actual = request.args.get('only_actual', type=int)
 
         sql = '''
         SELECT
@@ -693,12 +695,14 @@ class Query9Resource(Resource):
         JOIN feed_production fp ON fi.id = fp.feed_item_id
         JOIN feed_types ft ON fi.feed_type = ft.id
         LEFT JOIN feed_orders fo ON fi.id = fo.feed_item_id
-        WHERE fo.id IS NULL
+        WHERE 1=1
         '''
         params = {}
         if feed_type_id:
             sql += ' AND ft.id = :feed_type_id'
             params['feed_type_id'] = feed_type_id
+        if only_actual == 1:
+            sql += ' AND fo.id IS NULL'
         sql += '\nGROUP BY fi.id, fi.name, ft.name'
         allowed_order = {'feed_item', 'feed_type', 'total_produced'}
         if order_by in allowed_order:

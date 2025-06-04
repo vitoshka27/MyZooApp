@@ -33,14 +33,11 @@ class SpeciesList(Resource):
             else:
                 query = query.order_by(col)
         page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 20, type=int)
-        pagination = query.paginate(page=page, per_page=limit, error_out=False)
-        items = [a.to_dict() for a in pagination.items]
+        items = query.all()
         return {
-            'total': pagination.total,
+            'total': len(items),
             'page': page,
-            'limit': limit,
-            'data': items
+            'data': [a.to_dict() for a in items]
         }
 
     @active_user_required
