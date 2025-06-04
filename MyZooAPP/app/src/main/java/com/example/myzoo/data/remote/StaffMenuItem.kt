@@ -1,6 +1,9 @@
 package com.example.myzoo.data.remote
 
+import com.google.gson.annotations.SerializedName
+
 data class StaffMenuItem(
+    @SerializedName("id")
     val id: Int?,
     val last_name: String?,
     val first_name: String?,
@@ -11,6 +14,7 @@ data class StaffMenuItem(
     val hire_date: String?,
     val years_worked: Int?,
     val salary: Float?,
+    val category_id: Int?,
     val category: String?,
     val animal_id: Int? = null, // только для query2
     val animal_name: String? = null, // только для query2

@@ -289,7 +289,9 @@ class MainActivity : ComponentActivity() {
                             composable("admin_panel") {
                                 AdminPanelScreen(onBack = { navController.popBackStack() })
                             }
-                            composable("treatment") { PlaceholderScreen("Лечение") }
+                            composable("treatment") {
+                                VetTreatmentListScreen()
+                            }
                             composable("medical") { PlaceholderScreen("Медосмотр") }
                             composable("feeding") { PlaceholderScreen("Кормление") }
                         }
