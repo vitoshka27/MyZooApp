@@ -68,6 +68,7 @@ import java.io.File
 import java.io.FileOutputStream
 import com.example.myzoo.ui.screens.StaffListScreen
 import com.example.myzoo.ui.screens.SuppliesListScreen
+import com.example.myzoo.ui.screens.SplashScreen
 
 data class MenuItem(val route: String, val icon: ImageVector)
 
@@ -113,187 +114,156 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyZooTheme {
                 val context = LocalContext.current
-                var isAuthorized by remember { mutableStateOf(false) }
-                var token by remember { mutableStateOf("") }
-                var checkedAutoLogin by rememberSaveable { mutableStateOf(false) }
-                var viewModelKey by remember { mutableStateOf(0) }
-                val LOG_TAG = "MyZooApp"
-                val TOKEN_KEY = stringPreferencesKey("token")
-                val LAST_LOGIN_KEY = stringPreferencesKey("last_login")
-                val LOGGED_OUT_KEY = stringPreferencesKey("user_logged_out")
-                val loginViewModel: LoginViewModel = viewModel(key = "login_$viewModelKey")
+                val loginViewModel: LoginViewModel = viewModel()
                 val profile by loginViewModel.profile.collectAsState()
+                val authState by remember { loginViewModel::authState }
                 val accentGradient = Brush.horizontalGradient(listOf(TropicGreen, TropicTurquoise))
 
-                LaunchedEffect(checkedAutoLogin) {
-                    if (!checkedAutoLogin) {
-                        val (savedToken, lastLogin, loggedOut) = loadLastLogin(context)
-                        val now = Instant.now()
-                        val twoMonths = Duration.ofDays(60)
-                        Log.d(LOG_TAG, "AutoLogin check: token=$savedToken, lastLogin=$lastLogin, loggedOut=$loggedOut, now=$now")
-                        if (savedToken != null && savedToken.isNotBlank() && lastLogin != null && Duration.between(lastLogin, now) < twoMonths && loggedOut == "false") {
-                            Log.d(LOG_TAG, "AutoLogin: SUCCESS")
-                            ApiModule.setToken(savedToken)
-                            token = savedToken
-                            isAuthorized = true
-                            loginViewModel.loadProfile()
-                        } else {
-                            Log.d(LOG_TAG, "AutoLogin: SKIPPED")
-                        }
-                        checkedAutoLogin = true
-                    }
+                // Проверка автологина при запуске
+                LaunchedEffect(Unit) {
+                    loginViewModel.checkAutoLogin(context)
                 }
 
-                if (!isAuthorized) {
-                    LoginScreen(onLoginSuccess = {
-                        Log.d(LOG_TAG, "LoginScreen: onLoginSuccess, token=$it")
-                        ApiModule.setToken(it)
-                        token = it
-                        isAuthorized = true
-                        saveLastLogin(context, it)
+                when (authState) {
+                    is AuthState.Checking -> SplashScreen()
+                    is AuthState.NeedLogin -> LoginScreen(onLoginSuccess = { token ->
+                        loginViewModel.onLoginSuccess(token, context)
                         loginViewModel.loadProfile()
                     })
-                } else {
-                    val navController = rememberNavController()
-                    var lastAnimalList by remember { mutableStateOf(listOf<com.example.myzoo.data.remote.AnimalMenuItem>()) }
-                    val menuItems = remember(profile) {
-                        when (profile?.category_id) {
-                            5 -> listOf(
-                                MenuItem("animals", Icons.Filled.Pets),
-                                MenuItem("staff", Icons.Filled.Group),
-                                MenuItem("supplies", Icons.Filled.LocalShipping),
-                                MenuItem("production", Icons.Filled.Factory),
-                                MenuItem("exchange", Icons.Filled.SwapHoriz),
-                                MenuItem("profile", Icons.Filled.AccountCircle)
-                            )
-                            1 -> listOf(
-                                MenuItem("animals", Icons.Filled.Pets),
-                                MenuItem("treatment", Icons.Filled.Healing),
-                                MenuItem("medical", Icons.Filled.MedicalServices),
-                                MenuItem("profile", Icons.Filled.AccountCircle)
-                            )
-                            3 -> listOf(
-                                MenuItem("animals", Icons.Filled.Pets),
-                                MenuItem("feeding", Icons.Filled.Restaurant),
-                                MenuItem("profile", Icons.Filled.AccountCircle)
-                            )
-                            else -> listOf(
-                                MenuItem("animals", Icons.Filled.Pets),
-                                MenuItem("profile", Icons.Filled.AccountCircle)
-                            )
-                        }
-                    }
-                    var selectedMenu by remember { mutableStateOf(menuItems.first().route) }
-                    Scaffold(
-                        bottomBar = {
-                            val darkBlue = Color(0xFF232946)
-                            val inactiveIcon = Color.White
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(72.dp)
-                                    .background(darkBlue)
-                            ) {
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(2.dp)
-                                        .background(Color.White.copy(alpha = 0.10f))
-                                        .align(Alignment.TopCenter)
-                                )
-                                Row(
-                                    Modifier.fillMaxSize(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    menuItems.forEach { item ->
-                                        val isSelected = selectedMenu == item.route
+                    is AuthState.LoggedIn -> {
+                        if (profile == null) {
+                            SplashScreen()
+                        } else {
+                            val navController = rememberNavController()
+                            var lastAnimalList by remember { mutableStateOf(listOf<com.example.myzoo.data.remote.AnimalMenuItem>()) }
+                            val menuItems = remember(profile) {
+                                when (profile?.category_id) {
+                                    5 -> listOf(
+                                        MenuItem("animals", Icons.Filled.Pets),
+                                        MenuItem("staff", Icons.Filled.Group),
+                                        MenuItem("supplies", Icons.Filled.LocalShipping),
+                                        MenuItem("production", Icons.Filled.Factory),
+                                        MenuItem("exchange", Icons.Filled.SwapHoriz),
+                                        MenuItem("profile", Icons.Filled.AccountCircle)
+                                    )
+                                    1 -> listOf(
+                                        MenuItem("animals", Icons.Filled.Pets),
+                                        MenuItem("treatment", Icons.Filled.Healing),
+                                        MenuItem("medical", Icons.Filled.MedicalServices),
+                                        MenuItem("profile", Icons.Filled.AccountCircle)
+                                    )
+                                    3 -> listOf(
+                                        MenuItem("animals", Icons.Filled.Pets),
+                                        MenuItem("feeding", Icons.Filled.Restaurant),
+                                        MenuItem("profile", Icons.Filled.AccountCircle)
+                                    )
+                                    else -> listOf(
+                                        MenuItem("animals", Icons.Filled.Pets),
+                                        MenuItem("profile", Icons.Filled.AccountCircle)
+                                    )
+                                }
+                            }
+                            var selectedMenu by remember { mutableStateOf(menuItems.first().route) }
+                            Scaffold(
+                                bottomBar = {
+                                    val darkBlue = Color(0xFF232946)
+                                    val inactiveIcon = Color.White
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(72.dp)
+                                            .background(darkBlue)
+                                    ) {
                                         Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clip(RoundedCornerShape(50))
-                                                .then(
-                                                    if (isSelected)
-                                                        Modifier.background(accentGradient, RoundedCornerShape(32))
-                                                    else
-                                                        Modifier.background(Color.Transparent, RoundedCornerShape(32))
-                                                )
-                                                .clickable {
-                                                    selectedMenu = item.route
-                                                    navController.navigate(item.route) {
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                                .padding(vertical = 16.dp, horizontal = 2.dp),
-                                            contentAlignment = Alignment.Center
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .height(2.dp)
+                                                .background(Color.White.copy(alpha = 0.10f))
+                                                .align(Alignment.TopCenter)
+                                        )
+                                        Row(
+                                            Modifier.fillMaxSize(),
+                                            horizontalArrangement = Arrangement.SpaceEvenly,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                item.icon,
-                                                contentDescription = null,
-                                                tint = if (isSelected) Color.White else inactiveIcon,
-                                                modifier = Modifier.size(30.dp)
-                                            )
+                                            menuItems.forEach { item ->
+                                                val isSelected = selectedMenu == item.route
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(RoundedCornerShape(50))
+                                                        .then(
+                                                            if (isSelected)
+                                                                Modifier.background(accentGradient, RoundedCornerShape(32))
+                                                            else
+                                                                Modifier.background(Color.Transparent, RoundedCornerShape(32))
+                                                        )
+                                                        .clickable {
+                                                            selectedMenu = item.route
+                                                            navController.navigate(item.route) {
+                                                                launchSingleTop = true
+                                                                restoreState = true
+                                                            }
+                                                        }
+                                                        .padding(vertical = 16.dp, horizontal = 2.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        item.icon,
+                                                        contentDescription = null,
+                                                        tint = if (isSelected) Color.White else inactiveIcon,
+                                                        modifier = Modifier.size(30.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                            ) { innerPadding ->
+                                NavHost(
+                                    navController = navController,
+                                    startDestination = menuItems.first().route,
+                                    modifier = Modifier.padding(innerPadding)
+                                ) {
+                                    composable("animals") {
+                                        AnimalListScreen(onAnimalClick = { animalMenuItem ->
+                                            lastAnimalList = lastAnimalList + animalMenuItem
+                                        })
+                                    }
+                                    composable("profile") {
+                                        ProfileScreen(
+                                            profile = profile,
+                                            onLogout = {
+                                                loginViewModel.logout(context)
+                                                loginViewModel.clearProfile()
+                                                loginViewModel.resetLoginState()
+                                                selectedMenu = "animals"
+                                                navController.navigate("animals") {
+                                                    popUpTo(0) { inclusive = true }
+                                                    launchSingleTop = true
+                                                }
+                                            },
+                                            onAdminPanel = {
+                                                navController.navigate("admin_panel")
+                                            },
+                                            loginViewModel = loginViewModel,
+                                            navController = navController
+                                        )
+                                    }
+                                    composable("staff") { StaffListScreen() }
+                                    composable("supplies") { SuppliesListScreen() }
+                                    composable("production") { ProductionListScreen() }
+                                    composable("exchange") { ExchangeListScreen() }
+                                    composable("admin_panel") {
+                                        AdminPanelScreen(onBack = { navController.popBackStack() })
+                                    }
+                                    composable("treatment") {
+                                        VetTreatmentListScreen()
+                                    }
+                                    composable("medical") { MedicalExamListScreen() }
+                                    composable("feeding") { FeedingListScreen() }
+                                }
                             }
-                        }
-                    ) { innerPadding ->
-                        NavHost(
-                            navController = navController,
-                            startDestination = menuItems.first().route,
-                        modifier = Modifier.padding(innerPadding)
-                        ) {
-                            composable("animals") {
-                                AnimalListScreen(onAnimalClick = { animalMenuItem ->
-                                    lastAnimalList = lastAnimalList + animalMenuItem
-                                })
-                            }
-                            composable("profile") {
-                                ProfileScreen(
-                                    profile = profile,
-                                    onLogout = {
-                                        Log.d(LOG_TAG, "Logout: start")
-                                        runBlocking {
-                                            context.authDataStore.edit { prefs ->
-                                                prefs[TOKEN_KEY] = ""
-                                                prefs[LAST_LOGIN_KEY] = ""
-                                                prefs[LOGGED_OUT_KEY] = "true"
-                                            }
-                                        }
-                                        token = ""
-                                        isAuthorized = false
-                                        checkedAutoLogin = false
-                                        loginViewModel.clearProfile()
-                                        loginViewModel.resetLoginState()
-                                        selectedMenu = "animals"
-                                        navController.navigate("animals") {
-                                            popUpTo(0) { inclusive = true }
-                                            launchSingleTop = true
-                                        }
-                                        viewModelKey++
-                                        Log.d(LOG_TAG, "Logout: complete")
-                                    },
-                                    onAdminPanel = {
-                                        navController.navigate("admin_panel")
-                                    },
-                                    loginViewModel = loginViewModel,
-                                    navController = navController
-                                )
-                            }
-                            composable("staff") { StaffListScreen() }
-                            composable("supplies") { SuppliesListScreen() }
-                            composable("production") { ProductionListScreen() }
-                            composable("exchange") { ExchangeListScreen() }
-                            composable("admin_panel") {
-                                AdminPanelScreen(onBack = { navController.popBackStack() })
-                            }
-                            composable("treatment") {
-                                VetTreatmentListScreen()
-                            }
-                            composable("medical") { PlaceholderScreen("Медосмотр") }
-                            composable("feeding") { PlaceholderScreen("Кормление") }
                         }
                     }
                 }

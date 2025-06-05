@@ -238,6 +238,9 @@ interface ZooApiService {
         @retrofit2.http.Path("table") table: String,
         @retrofit2.http.Path("id") id: Int
     ): Response<ResponseBody>
+
+    @GET("api/staff/{id}")
+    suspend fun getStaffById(@retrofit2.http.Path("id") id: Int): StaffMenuItem
 }
 
 data class StaffCategoryDto(

@@ -39,11 +39,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 
 @Composable
-fun FilterRow(label: String, content: @Composable () -> Unit) {
+fun FilterRow(label: String, labelColor: Color = TropicOnBackground, content: @Composable () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.weight(1f), color = TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
+        Text(label, modifier = Modifier.weight(1f), color = labelColor, style = MaterialTheme.typography.bodyLarge)
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             content()
         }
@@ -196,6 +197,13 @@ fun DatePickerDialog(
                 DatePicker(state = state)
             }
         }
+    }
+}
+
+@Composable
+fun SplashScreen() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
     }
 } 
  

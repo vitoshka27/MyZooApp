@@ -13,6 +13,9 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +34,6 @@ import com.example.myzoo.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -40,6 +42,8 @@ import androidx.compose.foundation.border
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import android.util.Log
+import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.launch
 
 // --- Data class ---
 data class AnimalVaccinationItem(
@@ -170,19 +174,21 @@ fun VetTreatmentListScreen(viewModel: VetTreatmentListViewModel = viewModel()) {
     val vaccineIdToName = remember(vaccines) { vaccines.associate { it.id to it.name } }
     val diseaseIdToName = remember(diseasesDict) { diseasesDict.associate { it.id to it.name } }
     // --- Справочник ветеринаров ---
-    val veterinariansState = remember { mutableStateOf(emptyList<com.example.myzoo.data.remote.StaffMenuItem>()) }
-    val veterinarianIdToStaff = remember(veterinariansState.value) {
-        veterinariansState.value.filter { it.id != null }.associateBy { it.id!! }
-    }
+    val allStaffState = remember { mutableStateOf<List<Map<String, Any?>>>(emptyList()) }
     val coroutineScope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
-        try {
-            val vets = com.example.myzoo.data.remote.ApiModule.getStaffQuery1(categoryId = 1)
-            veterinariansState.value = vets
-            Log.d("VetScreen", "Загружено ветеринаров через getStaffQuery1: ${vets.map { v -> v.id to v.last_name }}")
-        } catch (e: Exception) {
-            Log.e("VetScreen", "Ошибка загрузки ветеринаров через getStaffQuery1: $e")
+        coroutineScope.launch {
+            try {
+                val resp = com.example.myzoo.data.remote.ApiModule.getAdminTable("staff")
+                allStaffState.value = resp.data
+            } catch (e: Exception) {
+                Log.e("VetScreen", "Ошибка загрузки сотрудников через getAdminTable: $e")
+            }
         }
+    }
+    val veterinariansList = remember(allStaffState.value) {
+        allStaffState.value.filter { (it["category_id"] as? Number)?.toInt() == 1 && it["id"] != null }
+            .map { it }
     }
     // --- Динамическая подгрузка ФИО по id, если не найдено ---
     val missingVetCache = remember { mutableStateMapOf<Int, com.example.myzoo.data.remote.StaffMenuItem?>() }
@@ -190,16 +196,20 @@ fun VetTreatmentListScreen(viewModel: VetTreatmentListViewModel = viewModel()) {
         if (missingVetCache.containsKey(id)) return
         coroutineScope.launch {
             try {
-                val result = com.example.myzoo.data.remote.ApiModule.getStaffQuery1(categoryId = 1).firstOrNull { it.id == id }
+                val result = com.example.myzoo.data.remote.ApiModule.getStaffById(id)
+                Log.d("fetchVetById", "Fetched vet for id=$id: $result")
                 missingVetCache[id] = result
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("fetchVetById", "Error fetching vet for id=$id: $e")
                 missingVetCache[id] = null
             }
         }
     }
     // --- Автоматическая загрузка данных при первом входе ---
     LaunchedEffect(selectedTab) {
-        if (selectedTab == 0) viewModel.loadVaccinations() else viewModel.loadDiseases()
+        coroutineScope.launch {
+            if (selectedTab == 0) viewModel.loadVaccinations() else viewModel.loadDiseases()
+        }
     }
 
     // --- Сортировка ---
@@ -248,6 +258,39 @@ fun VetTreatmentListScreen(viewModel: VetTreatmentListViewModel = viewModel()) {
             }
         })
         if (sortDiseasesDir == "desc") base.reversed() else base
+    }
+
+    // --- Диалоги и состояния для CRUD ---
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editType by remember { mutableStateOf<String?>(null) } // "vaccination" или "disease"
+    var editVaccination by remember { mutableStateOf<AnimalVaccinationItem?>(null) }
+    var editDisease by remember { mutableStateOf<AnimalDiseaseItem?>(null) }
+    var editValues by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isDeleting by remember { mutableStateOf(false) }
+    var deleteId by remember { mutableStateOf<Int?>(null) }
+    var deleteTable by remember { mutableStateOf<String?>(null) }
+    fun openAddDialog(type: String) {
+        editType = type
+        editVaccination = null
+        editDisease = null
+        editValues = when (type) {
+            "vaccination" -> mapOf(
+                "animal_id" to "",
+                "vaccine_id" to "",
+                "vaccination_date" to "",
+                "next_vaccination_date" to ""
+            )
+            "disease" -> mapOf(
+                "animal_id" to "",
+                "veterinarian_id" to "",
+                "disease_id" to "",
+                "diagnosed_date" to "",
+                "recovery_date" to "",
+                "notes" to ""
+            )
+            else -> emptyMap()
+        }
+        showEditDialog = true
     }
 
     Box(
@@ -552,7 +595,24 @@ fun VetTreatmentListScreen(viewModel: VetTreatmentListViewModel = viewModel()) {
                                 VaccinationCard(
                                     item = item,
                                     animalName = animalIdToName[item.animal_id],
-                                    vaccineName = vaccineIdToName[item.vaccine_id]
+                                    vaccineName = vaccineIdToName[item.vaccine_id],
+                                    onEdit = {
+                                        editType = "vaccination"
+                                        editVaccination = item
+                                        editDisease = null
+                                        editValues = mapOf(
+                                            "animal_id" to item.animal_id.toString(),
+                                            "vaccine_id" to item.vaccine_id.toString(),
+                                            "vaccination_date" to (item.vaccination_date ?: ""),
+                                            "next_vaccination_date" to (item.next_vaccination_date ?: "")
+                                        )
+                                        showEditDialog = true
+                                    },
+                                    onDelete = {
+                                        isDeleting = true
+                                        deleteId = item.id
+                                        deleteTable = "animal_vaccinations"
+                                    }
                                 )
                                 Spacer(Modifier.height(8.dp))
                             }
@@ -571,19 +631,34 @@ fun VetTreatmentListScreen(viewModel: VetTreatmentListViewModel = viewModel()) {
                             }
                         } else {
                             items(sortedDiseases) { item ->
-                                var vet = item.veterinarian_id?.let { veterinarianIdToStaff[it] }
+                                val vet = veterinariansList.find { (it["id"] as? Number)?.toInt() == item.veterinarian_id }
                                 if (vet == null && item.veterinarian_id != null) {
-                                    vet = missingVetCache[item.veterinarian_id]
-                                    if (vet == null && !missingVetCache.containsKey(item.veterinarian_id)) {
-                                        fetchVetById(item.veterinarian_id)
-                                    }
+                                    // fallback: можно оставить как есть, если нужен fetchVetById
                                 }
-                                if (vet == null) Log.w("DiseaseCard", "ВНИМАНИЕ: vetObj=null для veterinarian_id=${item.veterinarian_id}. Справочник id: ${veterinarianIdToStaff.keys}")
                                 DiseaseCard(
                                     item = item,
                                     animalName = animalIdToName[item.animal_id],
                                     veterinarian = vet,
-                                    diseaseName = diseaseIdToName[item.disease_id]
+                                    diseaseName = diseaseIdToName[item.disease_id],
+                                    onEdit = {
+                                        editType = "disease"
+                                        editDisease = item
+                                        editVaccination = null
+                                        editValues = mapOf(
+                                            "animal_id" to item.animal_id.toString(),
+                                            "veterinarian_id" to (item.veterinarian_id?.toString() ?: ""),
+                                            "disease_id" to item.disease_id.toString(),
+                                            "diagnosed_date" to (item.diagnosed_date ?: ""),
+                                            "recovery_date" to (item.recovery_date ?: ""),
+                                            "notes" to (item.notes ?: "")
+                                        )
+                                        showEditDialog = true
+                                    },
+                                    onDelete = {
+                                        isDeleting = true
+                                        deleteId = item.id
+                                        deleteTable = "animal_diseases"
+                                    }
                                 )
                                 Spacer(Modifier.height(8.dp))
                             }
@@ -807,12 +882,165 @@ fun VetTreatmentListScreen(viewModel: VetTreatmentListViewModel = viewModel()) {
                 }
             }
         }
+        // --- Плавающая кнопка плюсик ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 18.dp, start = 18.dp),
+            contentAlignment = Alignment.BottomStart
+        ) {
+            Row {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(TropicGreen)
+                        .clickable { openAddDialog(if (selectedTab == 0) "vaccination" else "disease") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Добавить запись", tint = Color.White, modifier = Modifier.size(32.dp))
+                }
+            }
+        }
+    }
+    // --- Диалог удаления ---
+    if (isDeleting && deleteId != null && deleteTable != null) {
+        AlertDialog(
+            onDismissRequest = { isDeleting = false; deleteId = null; deleteTable = null },
+            title = { Text("Удалить запись?", color = TropicOrange) },
+            text = { Text("Вы уверены, что хотите удалить эту запись?", color = Color.White) },
+            confirmButton = {
+                Button(onClick = {
+                    coroutineScope.launch {
+                        ApiModule.deleteAdminTableRow(deleteTable!!, deleteId!!)
+                        if (deleteTable == "animal_vaccinations") viewModel.loadVaccinations() else viewModel.loadDiseases()
+                        isDeleting = false
+                        deleteId = null
+                        deleteTable = null
+                    }
+                }, colors = ButtonDefaults.buttonColors(containerColor = TropicOrange)) {
+                    Text("Удалить", color = Color.White)
+                }
+            },
+            dismissButton = {
+                Button(onClick = { isDeleting = false; deleteId = null; deleteTable = null }, colors = ButtonDefaults.buttonColors(containerColor = TropicSurface)) {
+                    Text("Отмена", color = TropicOnBackground)
+                }
+            }
+        )
+    }
+    // --- Диалог редактирования ---
+    if (showEditDialog && editType != null) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text(if (editVaccination != null || editDisease != null) "Редактировать запись" else "Добавить запись", color = TropicTurquoise) },
+            text = {
+                Column {
+                    if (editType == "vaccination") {
+                        FilterRow(label = "Вакцина", labelColor = Color.White) {
+                            DropdownSelector(
+                                label = "Выберите вакцину",
+                                options = vaccines.map { it.id to it.name },
+                                selected = editValues["vaccine_id"]?.toIntOrNull(),
+                                onSelected = { editValues = editValues.toMutableMap().apply { put("vaccine_id", it?.toString() ?: "") } },
+                                width = 220.dp
+                            )
+                        }
+                        OutlinedTextField(
+                            value = editValues["vaccination_date"] ?: "",
+                            onValueChange = { editValues = editValues.toMutableMap().apply { put("vaccination_date", it) } },
+                            label = { Text("Дата вакцинации", color = Color.White) },
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = editValues["next_vaccination_date"] ?: "",
+                            onValueChange = { editValues = editValues.toMutableMap().apply { put("next_vaccination_date", it) } },
+                            label = { Text("Следующая вакцинация", color = Color.White) },
+                            singleLine = true
+                        )
+                    } else if (editType == "disease") {
+                        FilterRow(label = "Болезнь", labelColor = Color.White) {
+                            DropdownSelector(
+                                label = "Выберите болезнь",
+                                options = diseasesDict.map { it.id to it.name },
+                                selected = editValues["disease_id"]?.toIntOrNull(),
+                                onSelected = { editValues = editValues.toMutableMap().apply { put("disease_id", it?.toString() ?: "") } },
+                                width = 220.dp
+                            )
+                        }
+                        FilterRow(label = "Ветеринар", labelColor = Color.White) {
+                            DropdownSelector(
+                                label = "Выберите ветеринара",
+                                options = veterinariansList.map { vet ->
+                                    val id = (vet["id"] as? Number)?.toInt() ?: return@map null
+                                    val fio = listOfNotNull(vet["last_name"]?.toString(), vet["first_name"]?.toString(), vet["middle_name"]?.toString()).joinToString(" ").replace(Regex(" +"), " ")
+                                    id to fio
+                                }.filterNotNull(),
+                                selected = editValues["veterinarian_id"]?.toIntOrNull(),
+                                onSelected = { editValues = editValues.toMutableMap().apply { put("veterinarian_id", it?.toString() ?: "") } },
+                                width = 220.dp
+                            )
+                        }
+                        OutlinedTextField(
+                            value = editValues["diagnosed_date"] ?: "",
+                            onValueChange = { editValues = editValues.toMutableMap().apply { put("diagnosed_date", it) } },
+                            label = { Text("Дата диагноза", color = Color.White) },
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = editValues["recovery_date"] ?: "",
+                            onValueChange = { editValues = editValues.toMutableMap().apply { put("recovery_date", it) } },
+                            label = { Text("Дата выздоровления", color = Color.White) },
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = editValues["notes"] ?: "",
+                            onValueChange = { editValues = editValues.toMutableMap().apply { put("notes", it) } },
+                            label = { Text("Заметки", color = Color.White) },
+                            singleLine = false
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    coroutineScope.launch {
+                        val body = editValues.filterKeys { it != "id" }
+                        if (editType == "vaccination") {
+                            val id = editVaccination?.id
+                            if (id != null) {
+                                ApiModule.updateAdminTableRow("animal_vaccinations", id, body)
+                            } else {
+                                ApiModule.addAdminTableRow("animal_vaccinations", body)
+                            }
+                            viewModel.loadVaccinations()
+                        } else if (editType == "disease") {
+                            val id = editDisease?.id
+                            if (id != null) {
+                                ApiModule.updateAdminTableRow("animal_diseases", id, body)
+                            } else {
+                                ApiModule.addAdminTableRow("animal_diseases", body)
+                            }
+                            viewModel.loadDiseases()
+                        }
+                        showEditDialog = false
+                    }
+                }, colors = ButtonDefaults.buttonColors(containerColor = TropicTurquoise)) {
+                    Text(if ((editVaccination != null || editDisease != null)) "Сохранить" else "Добавить", color = Color.White)
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showEditDialog = false }, colors = ButtonDefaults.buttonColors(containerColor = TropicSurface)) {
+                    Text("Отмена", color = TropicOnBackground)
+                }
+            }
+        )
     }
 }
 
 // --- Карточка вакцинации ---
 @Composable
-fun VaccinationCard(item: AnimalVaccinationItem, animalName: String?, vaccineName: String?) {
+fun VaccinationCard(item: AnimalVaccinationItem, animalName: String?, vaccineName: String?, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -844,17 +1072,27 @@ fun VaccinationCard(item: AnimalVaccinationItem, animalName: String?, vaccineNam
                 Text("Дата вакцинации: ${item.vaccination_date ?: "-"}", color = TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
                 Text("Следующая вакцинация: ${item.next_vaccination_date ?: "-"}", color = TropicGreen, style = MaterialTheme.typography.bodyLarge)
             }
+            Column(
+                Modifier.align(Alignment.Top),
+                horizontalAlignment = Alignment.End
+            ) {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Редактировать", tint = Color(0xFFFFC107), modifier = Modifier.size(28.dp))
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Удалить", tint = Color(0xFFFF7043), modifier = Modifier.size(28.dp))
+                }
+            }
         }
     }
 }
 
 // --- Карточка болезни ---
 @Composable
-fun DiseaseCard(item: AnimalDiseaseItem, animalName: String?, veterinarian: com.example.myzoo.data.remote.StaffMenuItem?, diseaseName: String?) {
-    // Явно достаем все 3 значения и соединяем
-    val lastName = veterinarian?.last_name ?: ""
-    val firstName = veterinarian?.first_name ?: ""
-    val middleName = veterinarian?.middle_name ?: ""
+fun DiseaseCard(item: AnimalDiseaseItem, animalName: String?, veterinarian: Map<String, Any?>?, diseaseName: String?, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val lastName = veterinarian?.get("last_name") as? String ?: ""
+    val firstName = veterinarian?.get("first_name") as? String ?: ""
+    val middleName = veterinarian?.get("middle_name") as? String ?: ""
     val fio = (lastName + " " + firstName + " " + middleName).trim().replace(Regex(" +"), " ")
     Log.d("DiseaseCard", "veterinarian_id=${item.veterinarian_id}, fio=$fio, vetObj=$veterinarian")
     Card(
@@ -889,6 +1127,17 @@ fun DiseaseCard(item: AnimalDiseaseItem, animalName: String?, veterinarian: com.
                 Text("Дата диагноза: ${item.diagnosed_date ?: "-"}", color = TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
                 Text("Выздоровление: ${item.recovery_date ?: "-"}", color = TropicGreen, style = MaterialTheme.typography.bodyLarge)
                 Text("Заметки: ${item.notes ?: "-"}", color = TropicOnBackground, style = MaterialTheme.typography.bodyLarge)
+            }
+            Column(
+                Modifier.align(Alignment.Top),
+                horizontalAlignment = Alignment.End
+            ) {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Редактировать", tint = Color(0xFFFFC107), modifier = Modifier.size(28.dp))
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Удалить", tint = Color(0xFFFF7043), modifier = Modifier.size(28.dp))
+                }
             }
         }
     }

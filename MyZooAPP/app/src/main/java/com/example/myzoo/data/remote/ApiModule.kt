@@ -150,6 +150,14 @@ object ApiModule {
     suspend fun updateAdminTableRow(table: String, id: Int, body: Map<String, String>): AdminTableEditResponse = zooApi.updateAdminTableRow(table, id, body)
 
     suspend fun getZooExchanges(): List<Map<String, Any?>> = getAdminTable("zoo_exchanges").data
+
+    suspend fun getStaffById(id: Int): StaffMenuItem? {
+        return try {
+            zooApi.getStaffById(id)
+        } catch (e: Exception) {
+            null
+        }
+    }
 } 
  
  

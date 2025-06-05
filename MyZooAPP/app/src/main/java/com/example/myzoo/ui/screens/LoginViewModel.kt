@@ -25,6 +25,12 @@ import com.example.myzoo.authDataStore
 import com.example.myzoo.data.remote.CategoryAttributeDto
 import com.example.myzoo.data.remote.StaffAttributeValueDto
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.myzoo.loadLastLogin
+import com.example.myzoo.saveLastLogin
+import java.time.Duration
+import java.time.Instant
 
 private val LOGGED_OUT_KEY = stringPreferencesKey("user_logged_out")
 
@@ -35,6 +41,14 @@ private fun setLoggedOutFlag(context: Context, value: Boolean) {
         }
     }
 }
+
+// Состояние авторизации
+sealed class AuthState {
+    object Checking : AuthState()
+    object LoggedIn : AuthState()
+    object NeedLogin : AuthState()
+}
+
 class LoginViewModel : ViewModel() {
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
@@ -46,6 +60,8 @@ class LoginViewModel : ViewModel() {
     val categoryAttributes: StateFlow<List<CategoryAttributeDto>> = _categoryAttributes.asStateFlow()
     private val _staffAttributeValues = MutableStateFlow<List<StaffAttributeValueDto>>(emptyList())
     val staffAttributeValues: StateFlow<List<StaffAttributeValueDto>> = _staffAttributeValues.asStateFlow()
+    var authState by mutableStateOf<AuthState>(AuthState.Checking)
+        private set
 
     fun login(context: Context, username: String, password: String) {
         _loginState.value = LoginState.Loading
@@ -85,7 +101,6 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-
     fun loadProfile() {
         viewModelScope.launch {
             try {
@@ -112,6 +127,43 @@ class LoginViewModel : ViewModel() {
     fun resetLoginState() {
         _loginState.value = LoginState.Idle
         token = null
+    }
+
+    fun checkAutoLogin(context: Context) {
+        viewModelScope.launch {
+            val (savedToken, lastLogin, loggedOut) = loadLastLogin(context)
+            val now = Instant.now()
+            val twoMonths = Duration.ofDays(60)
+            if (savedToken != null && savedToken.isNotBlank() && lastLogin != null && Duration.between(lastLogin, now) < twoMonths && loggedOut == "false") {
+                ApiModule.setToken(savedToken)
+                try {
+                    val profileResp = ApiModule.getProfile()
+                    _profile.value = profileResp
+                    if (profileResp != null) {
+                        _categoryAttributes.value = try { ApiModule.getCategoryAttributes().filter { it.category_id == profileResp.category_id } } catch (_: Exception) { emptyList() }
+                        _staffAttributeValues.value = try { ApiModule.getStaffAttributeValues(profileResp.id) } catch (_: Exception) { emptyList() }
+                        authState = AuthState.LoggedIn
+                    } else {
+                        authState = AuthState.NeedLogin
+                    }
+                } catch (e: Exception) {
+                    authState = AuthState.NeedLogin
+                }
+            } else {
+                authState = AuthState.NeedLogin
+            }
+        }
+    }
+
+    fun onLoginSuccess(token: String, context: Context) {
+        ApiModule.setToken(token)
+        saveLastLogin(context, token)
+        authState = AuthState.LoggedIn
+    }
+
+    fun logout(context: Context) {
+        saveLastLogin(context, "")
+        authState = AuthState.NeedLogin
     }
 }
 
